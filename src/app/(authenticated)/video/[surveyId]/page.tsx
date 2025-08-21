@@ -30,7 +30,7 @@ const VideoPage = async ({ params }: { params: { surveyId: string } }) => {
 
   // console.log(surveyData);
 
-  if (!videoData.url) {
+  if (!videoData?.url) {
     return (
       <div className="flex justify-center items-center h-screen">
         <h1 className="text-2xl font-bold">No video found for this survey</h1>
@@ -45,7 +45,7 @@ const VideoPage = async ({ params }: { params: { surveyId: string } }) => {
       </h1>
       <div className=" mt-4">
         <VideoWithMap
-          videoUrl={videoData.mux_playback_id || videoData.url}
+          videoUrl={videoData.mux_playback_id || videoData?.url}
           locationData={surveyData?.gps_tracks?.location_data}
         />
       </div>

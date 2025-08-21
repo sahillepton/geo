@@ -1,11 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { DataTable } from "./data-table";
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   ChevronDownIcon,
@@ -38,6 +34,24 @@ import {
 } from "../ui/command";
 import { CommandInput } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { supabase } from "@/lib/supabase";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { Label } from "../ui/label";
+import { ArrowLeftIcon, PlusIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // Define some color pairs for avatars
 const avatarColors = [
@@ -55,119 +69,111 @@ const getRandomAvatarColor = () => {
   return avatarColors[randomIndex];
 };
 
-// Mock data for demonstration - replace with actual API calls
-const mockUsers = [
-  {
-    user_id: "fd87cbe4-6af7-4edb-bf86-9aa52c3250a4",
-    username: "nipun",
-    email: "nipun@lepton.com",
-    location: "gurgaon",
-    role: "admin",
-    manager_id: null,
-    manager_name: null,
-  },
-  {
-    user_id: "fd87cbe4-6af7-4edb-bf86-9aa52c3250a5",
-    username: "chrollo",
-    email: "chrollo@gmail.com",
-    location: "delhi",
-    role: "manager",
-    manager_id: "fd87cbe4-6af7-4edb-bf86-9aa52c3250a4",
-    manager_name: "nipun",
-  },
-  {
-    user_id: "fd87cbe4-6af7-4edb-bf86-9aa52c3250a6",
-    username: "chrollo2",
-    email: "chrollo2@gmail.com",
-    location: "mumbai",
-    role: "manager",
-    manager_id: null,
-    manager_name: null,
-  },
-  {
-    user_id: "fd87cbe4-6af7-4edb-bf86-9aa52c3250a7",
-    username: "nipun2",
-    email: "ncc@khachroad.com",
-    location: "bangalore",
-    role: "surveyor",
-    manager_id: "fd87cbe4-6af7-4edb-bf86-9aa52c3250a8",
-    manager_name: "MP_NCC",
-  },
-];
-
-// Mock API function - replace with actual API call
-const getUsers = async (filters: any, page: number, limit: number) => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  let filteredUsers = [...mockUsers];
-
-  // Apply filters
-  if (filters.search) {
-    filteredUsers = filteredUsers.filter(
-      (user) =>
-        user.username.toLowerCase().includes(filters.search.toLowerCase()) ||
-        user.email.toLowerCase().includes(filters.search.toLowerCase())
-    );
-  }
-
-  if (filters.role) {
-    filteredUsers = filteredUsers.filter((user) => user.role === filters.role);
-  }
-
-  if (filters.location) {
-    filteredUsers = filteredUsers.filter(
-      (user) => user.location === filters.location
-    );
-  }
-
-  // Apply pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
-
-  return {
-    data: paginatedUsers,
-    total: filteredUsers.length,
-    hasMore: endIndex < filteredUsers.length,
-  };
-};
-
-export default function UserTable() {
-  const [page, setPage] = useState(1);
+export default function UserTable({ currentUser }: { currentUser: any }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
-
-  const getFilters = () => {
-    const filters: any = {};
-    if (search) {
-      filters.search = search;
-    }
-    if (selectedRole) {
-      filters.role = selectedRole;
-    }
-    if (selectedLocation) {
-      filters.location = selectedLocation;
-    }
-    return filters;
-  };
-
-  const filters = useMemo(
-    () => getFilters(),
-    [search, selectedRole, selectedLocation]
-  );
-
-  const { status, data, error, isFetching, isPlaceholderData } = useQuery({
-    queryKey: ["users", page, filters],
-    queryFn: async () => {
-      const result = await getUsers(filters, page, 10);
-      return result;
-    },
-    placeholderData: keepPreviousData,
-    staleTime: 5000,
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [deletingUser, setDeletingUser] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    role: "",
+    location: "",
+    manager_id: "",
   });
+
+  // Fetch all users data
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const userRole = currentUser.role?.toLowerCase();
+      if (userRole === "admin") {
+        const { data: allUserData, error: allUserError } = await supabase
+          .from("users")
+          .select("*");
+
+        if (allUserError) throw allUserError;
+
+        return {
+          users: allUserData || [],
+          allUsers: allUserData || [],
+        };
+      }
+
+      let userQuery = supabase.from("users").select("*");
+
+      if (userRole === "manager" && currentUser.user_id) {
+        userQuery = userQuery.or(
+          `manager_id.eq.${currentUser.user_id},user_id.eq.${currentUser.user_id}`
+        );
+
+        const { data: userData, error } = await userQuery;
+
+        if (error) throw error;
+
+        const { data: allUserData } = await supabase
+          .from("users")
+          .select("user_id,username,role");
+
+        return {
+          users: userData || [],
+          allUsers: allUserData || [],
+        };
+      }
+    },
+  });
+
+  console.log(data, "management");
+
+  // Client-side filtering and pagination
+  const filteredUsers = useMemo(() => {
+    if (!data?.users) return [];
+
+    let filtered = [...data.users];
+
+    // Apply search filter
+    if (search) {
+      filtered = filtered.filter(
+        (user) =>
+          user.username?.toLowerCase().includes(search.toLowerCase()) ||
+          user.email?.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+
+    // Apply role filter
+    if (selectedRole) {
+      filtered = filtered.filter((user) => user.role === selectedRole);
+    }
+
+    // Apply location filter
+    if (selectedLocation) {
+      filtered = filtered.filter((user) => user.location === selectedLocation);
+    }
+
+    return filtered;
+  }, [data?.users, search, selectedRole, selectedLocation]);
+
+  // Apply pagination
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (page - 1) * 10;
+    const endIndex = startIndex + 10;
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, page]);
+
+  const totalPages = Math.ceil(filteredUsers.length / 10);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, selectedRole, selectedLocation]);
 
   const handleRoleChange = (value: string) => {
     setSelectedRole(value);
@@ -177,18 +183,145 @@ export default function UserTable() {
     setSelectedLocation(value);
   };
 
-  const handleEditUser = (userId: string) => {
-    console.log("Edit user:", userId);
-    // Implement edit functionality
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    setFormData({
+      username: user.username || "",
+      email: user.email || "",
+      password: "",
+      role: user.role || "",
+      location: user.location || "",
+      manager_id: user.manager_id || "no-manager",
+    });
+    setShowEditModal(true);
   };
 
-  const handleDeleteUser = (userId: string) => {
-    console.log("Delete user:", userId);
-    // Implement delete functionality
+  const handleDeleteUser = (user: any) => {
+    setDeletingUser(user);
+    setShowDeleteModal(true);
+  };
+
+  const handleAddUser = () => {
+    setFormData({
+      username: "",
+      email: "",
+      password: "",
+      role: "",
+      location: "",
+      manager_id: "no-manager",
+    });
+    setShowAddModal(true);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      username: "",
+      email: "",
+      password: "",
+      role: "",
+      location: "",
+      manager_id: "no-manager",
+    });
+    setEditingUser(null);
+    setDeletingUser(null);
+  };
+
+  const closeModals = () => {
+    setShowAddModal(false);
+    setShowEditModal(false);
+    setShowDeleteModal(false);
+    resetForm();
+  };
+
+  const handleSubmit = async (values: any) => {
+    try {
+      console.log(values, "values");
+      const isAdmin = currentUser.role?.toLowerCase() === "admin";
+      const isManager = currentUser.role?.toLowerCase() === "manager";
+
+      if (isManager) {
+        values.role = "surveyor";
+        values.manager_id = currentUser.user_id;
+      }
+
+      if (!editingUser) {
+        // Create new user
+        const { data, error } = await supabase
+          .from("users")
+          .insert([
+            {
+              username: values.username,
+              email: values.email,
+              password: values.password,
+              role: values.role,
+              location: values.location,
+              manager_id:
+                values.manager_id === "no-manager" ? null : values.manager_id,
+            },
+          ])
+          .select();
+
+        if (error) throw error;
+
+        alert("User created successfully");
+        queryClient.invalidateQueries({ queryKey: ["users"] });
+      } else {
+        // Update existing user
+        const updateData: any = {
+          username: values.username,
+          email: values.email,
+          location: values.location,
+        };
+
+        if (isAdmin) {
+          updateData.role = values.role;
+          updateData.manager_id =
+            values.manager_id === "no-manager" ? null : values.manager_id;
+        }
+
+        if (values.password) {
+          updateData.password = values.password;
+        }
+
+        const { error } = await supabase
+          .from("users")
+          .update(updateData)
+          .eq("user_id", editingUser.user_id);
+
+        if (error) throw error;
+
+        alert("User updated successfully");
+        queryClient.invalidateQueries({ queryKey: ["users"] });
+      }
+
+      closeModals();
+    } catch (error: any) {
+      console.error("Error saving user:", error);
+      alert("Failed to save user: " + error.message);
+    }
+  };
+
+  const handleDeleteSubmit = async () => {
+    try {
+      if (!deletingUser) return;
+
+      const { error } = await supabase
+        .from("users")
+        .delete()
+        .eq("user_id", deletingUser.user_id);
+
+      if (error) throw error;
+
+      alert("User deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      closeModals();
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      alert("Failed to delete user: " + error.message);
+    }
   };
 
   const getPageNumbers = () => {
-    const totalPages = Math.ceil((data?.total || 0) / 10);
     const pages = [];
     const maxPagesToShow = 5;
 
@@ -218,33 +351,13 @@ export default function UserTable() {
     if (typeof pageNum === "number") setPage(pageNum);
   };
 
-  useEffect(() => {
-    if (!isPlaceholderData && data?.hasMore) {
-      queryClient.prefetchQuery({
-        queryKey: ["users", page + 1, filters],
-        queryFn: () => getUsers(filters, page + 1, 10),
-      });
-    }
-  }, [data, isPlaceholderData, page, queryClient, filters]);
-
-  useEffect(() => {
-    setPage(1);
-    queryClient.prefetchQuery({
-      queryKey: ["users", 1, filters],
-      queryFn: async () => {
-        const result = await getUsers(filters, 1, 10);
-        return result;
-      },
-    });
-  }, [filters, queryClient]);
-
   const columns: ColumnDef<any>[] = [
     {
       accessorKey: "username",
       header: () => (
         <div className="flex items-center gap-1">
           <UserIcon size={16} />
-          <span>USERNAME ↑</span>
+          <span>USERNAME</span>
         </div>
       ),
       cell: ({ row }) => (
@@ -281,17 +394,20 @@ export default function UserTable() {
     {
       accessorKey: "manager",
       header: "MANAGER",
-      cell: ({ row }) => (
-        <div className="flex items-center justify-center">
-          {row.original.manager_name ? (
-            <span className="text-sm text-gray-700">
-              {row.original.manager_name}
-            </span>
-          ) : (
-            <span className="text-sm text-gray-400">-</span>
-          )}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const manager = data?.allUsers?.find(
+          (user: any) => user.user_id === row.original.manager_id
+        );
+        return (
+          <div className="flex items-center justify-center">
+            {manager ? (
+              <span className="text-sm text-gray-700">{manager.username}</span>
+            ) : (
+              <span className="text-sm text-gray-400">-</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "actions",
@@ -303,7 +419,7 @@ export default function UserTable() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleEditUser(row.original.user_id)}
+                onClick={() => handleEditUser(row.original)}
                 className="h-8 w-8 p-0 hover:bg-blue-50"
               >
                 <EditIcon size={16} className="text-blue-600" />
@@ -319,7 +435,7 @@ export default function UserTable() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleDeleteUser(row.original.user_id)}
+                onClick={() => handleDeleteUser(row.original)}
                 className="h-8 w-8 p-0 hover:bg-red-50"
               >
                 <TrashIcon size={16} className="text-red-600" />
@@ -334,12 +450,37 @@ export default function UserTable() {
     },
   ];
 
-  const roles = ["admin", "manager", "surveyor"];
-  const locations = ["gurgaon", "delhi", "mumbai", "bangalore"];
+  // Get unique roles and locations from the data
+  const roles = useMemo(() => {
+    if (!data?.users) return [];
+    return [...new Set(data.users.map((user) => user.role).filter(Boolean))];
+  }, [data?.users]);
+
+  const locations = useMemo(() => {
+    if (!data?.users) return [];
+    return [
+      ...new Set(data.users.map((user) => user.location).filter(Boolean)),
+    ];
+  }, [data?.users]);
 
   return (
     <div className="container py-10 w-[1050px]">
       <div className="mb-4 w-full flex justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            onClick={() => router.back()}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeftIcon size={16} />
+            Back
+          </Button>
+          <Button onClick={handleAddUser} className="flex items-center gap-2">
+            <PlusIcon size={16} />
+            Add User
+          </Button>
+        </div>
+
         <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2">
           <SearchIcon size={16} />
           <Input
@@ -418,8 +559,8 @@ export default function UserTable() {
 
       <DataTable
         columns={columns}
-        data={data?.data || []}
-        isFetching={isFetching}
+        data={paginatedUsers}
+        isFetching={isLoading}
       />
 
       <div className="flex items-center space-x-2 py-4 mt-4">
@@ -456,7 +597,6 @@ export default function UserTable() {
                 href="#"
                 onClick={(e) => {
                   e.preventDefault();
-                  const totalPages = Math.ceil((data?.total || 0) / 10);
                   setPage((prev) => Math.min(prev + 1, totalPages));
                 }}
               />
@@ -464,6 +604,257 @@ export default function UserTable() {
           </PaginationContent>
         </Pagination>
       </div>
+
+      {/* Add User Modal */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                value={formData.username}
+                onChange={(e) =>
+                  setFormData({ ...formData, username: e.target.value })
+                }
+                placeholder="Enter username"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                placeholder="Enter email"
+              />
+            </div>
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                placeholder="Enter password"
+              />
+            </div>
+            <div>
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, role: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="surveyor">Surveyor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
+                placeholder="Enter location"
+              />
+            </div>
+            <div>
+              <Label htmlFor="manager">Manager</Label>
+              <Select
+                value={formData.manager_id}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, manager_id: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select manager (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no-manager">No Manager</SelectItem>
+                  {data?.allUsers
+                    ?.filter((user: any) => user.role === "manager")
+                    .map((user: any) => (
+                      <SelectItem key={user.user_id} value={user.user_id}>
+                        {user.username}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeModals}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                handleSubmit(formData);
+              }}
+            >
+              Add User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Modal */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-username">Username</Label>
+              <Input
+                id="edit-username"
+                value={formData.username}
+                onChange={(e) =>
+                  setFormData({ ...formData, username: e.target.value })
+                }
+                placeholder="Enter username"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                placeholder="Enter email"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-password">
+                Password (leave blank to keep current)
+              </Label>
+              <Input
+                id="edit-password"
+                type="password"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                placeholder="Enter new password"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-role">Role</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, role: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="surveyor">Surveyor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="edit-location">Location</Label>
+              <Input
+                id="edit-location"
+                value={formData.location}
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
+                placeholder="Enter location"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-manager">Manager</Label>
+              <Select
+                value={formData.manager_id}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, manager_id: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select manager (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no-manager">No Manager</SelectItem>
+                  {data?.allUsers
+                    ?.filter((user: any) => user.role === "manager")
+                    .map((user: any) => (
+                      <SelectItem key={user.user_id} value={user.user_id}>
+                        {user.username}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeModals}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                handleSubmit(formData);
+              }}
+            >
+              Update User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete user{" "}
+              <strong>{deletingUser?.username}</strong>? This action cannot be
+              undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeModals}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                handleDeleteSubmit();
+              }}
+            >
+              Delete User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
