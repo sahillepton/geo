@@ -7,6 +7,7 @@ import {
   getStateBlocksAndDistricts,
   getStates,
   getVideoList,
+  getVideoList2,
 } from "../sidebar/action";
 import {
   keepPreviousData,
@@ -55,6 +56,17 @@ import {
   SelectTrigger,
 } from "../ui/select";
 import { DateRangePicker } from "../sidebar/date-range-picker";
+import { supabase } from "@/lib/supabase";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../ui/dialog";
+import { Label } from "../ui/label";
+import { User } from "@/lib/types";
+import { toast } from "sonner";
 
 // Define some color pairs
 const avatarColors = [
@@ -72,7 +84,7 @@ const getRandomAvatarColor = () => {
   return avatarColors[randomIndex];
 };
 
-export default function SurveyTable() {
+export default function SurveyTable({ currentUser }: { currentUser: User }) {
   const [page, setPage] = useState(1);
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -83,9 +95,167 @@ export default function SurveyTable() {
   const [selectedDateFilter, setSelectedDateFilter] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [showEditRouteModal, setShowEditRouteModal] = useState(false);
+  const [editingRoute, setEditingRoute] = useState<any>(null);
+  const [newRouteName, setNewRouteName] = useState("");
+
+  // Load all filters from localStorage on component mount
+  useEffect(() => {
+    try {
+      // Load date filters
+      const savedDateFilter = localStorage.getItem("surveyTable_dateFilter");
+      const savedDateFrom = localStorage.getItem("surveyTable_dateFrom");
+      const savedDateTo = localStorage.getItem("surveyTable_dateTo");
+
+      if (savedDateFilter) {
+        setSelectedDateFilter(savedDateFilter);
+      }
+      if (savedDateFrom) {
+        setDateFrom(new Date(savedDateFrom));
+      }
+      if (savedDateTo) {
+        setDateTo(new Date(savedDateTo));
+      }
+
+      // Load other filters
+      const savedSearch = localStorage.getItem("surveyTable_search");
+      const savedState = localStorage.getItem("surveyTable_state");
+      const savedDistrict = localStorage.getItem("surveyTable_district");
+      const savedBlock = localStorage.getItem("surveyTable_block");
+      const savedPage = localStorage.getItem("surveyTable_page");
+
+      if (savedSearch) {
+        setSearch(savedSearch);
+      }
+      if (savedState) {
+        setSelectedState(savedState);
+      }
+      if (savedDistrict) {
+        setSelectedDistrict(savedDistrict);
+      }
+      if (savedBlock) {
+        setSelectedBlock(savedBlock);
+      }
+      if (savedPage) {
+        setPage(parseInt(savedPage, 10));
+      }
+    } catch (error) {
+      console.error("Error loading filters from localStorage:", error);
+    }
+  }, []);
+
+  // Save all filters to localStorage
+  const saveFiltersToStorage = () => {
+    try {
+      // Save date filters
+      if (selectedDateFilter) {
+        localStorage.setItem("surveyTable_dateFilter", selectedDateFilter);
+      } else {
+        localStorage.removeItem("surveyTable_dateFilter");
+      }
+
+      if (dateFrom) {
+        localStorage.setItem("surveyTable_dateFrom", dateFrom.toISOString());
+      } else {
+        localStorage.removeItem("surveyTable_dateFrom");
+      }
+
+      if (dateTo) {
+        localStorage.setItem("surveyTable_dateTo", dateTo.toISOString());
+      } else {
+        localStorage.removeItem("surveyTable_dateTo");
+      }
+
+      // Save other filters
+      if (search) {
+        localStorage.setItem("surveyTable_search", search);
+      } else {
+        localStorage.removeItem("surveyTable_search");
+      }
+
+      if (selectedState) {
+        localStorage.setItem("surveyTable_state", selectedState);
+      } else {
+        localStorage.removeItem("surveyTable_state");
+      }
+
+      if (selectedDistrict) {
+        localStorage.setItem("surveyTable_district", selectedDistrict);
+      } else {
+        localStorage.removeItem("surveyTable_district");
+      }
+
+      if (selectedBlock) {
+        localStorage.setItem("surveyTable_block", selectedBlock);
+      } else {
+        localStorage.removeItem("surveyTable_block");
+      }
+
+      // Save page number
+      localStorage.setItem("surveyTable_page", page.toString());
+    } catch (error) {
+      console.error("Error saving filters to localStorage:", error);
+    }
+  };
+
+  // Save all filters to localStorage whenever they change
+  useEffect(() => {
+    saveFiltersToStorage();
+  }, [
+    selectedDateFilter,
+    dateFrom,
+    dateTo,
+    search,
+    selectedState,
+    selectedDistrict,
+    selectedBlock,
+    page,
+  ]);
+
+  // Clear all filters from localStorage
+  const clearAllFiltersFromStorage = () => {
+    try {
+      localStorage.removeItem("surveyTable_dateFilter");
+      localStorage.removeItem("surveyTable_dateFrom");
+      localStorage.removeItem("surveyTable_dateTo");
+      localStorage.removeItem("surveyTable_search");
+      localStorage.removeItem("surveyTable_state");
+      localStorage.removeItem("surveyTable_district");
+      localStorage.removeItem("surveyTable_block");
+      localStorage.removeItem("surveyTable_page");
+    } catch (error) {
+      console.error("Error clearing filters from localStorage:", error);
+    }
+  };
+
+  // Clear all filters and localStorage
+  const handleClearAllFilters = () => {
+    setSelectedState("");
+    setSelectedDistrict("");
+    setSelectedBlock("");
+    setSearch("");
+    setSelectedDateFilter("");
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    setPage(1);
+
+    // Clear localStorage
+    clearAllFiltersFromStorage();
+
+    // Refetch data with cleared filters
+    queryClient.prefetchQuery({
+      queryKey: ["videos", 1, {}],
+      queryFn: async () => {
+        const data = await getVideoList({}, 1, 10);
+        return JSON.parse(data.data).Result;
+      },
+    });
+  };
 
   const getFilters = () => {
     const filters: any = {};
+    filters.userRole = currentUser.role;
+    filters.userId = currentUser.user_id;
     if (selectedDistrict) {
       filters.district = selectedDistrict;
     }
@@ -98,9 +268,13 @@ export default function SurveyTable() {
     if (search) {
       filters.routeName = search;
     }
-    if (selectedDateFilter && dateFrom && dateTo) {
+    if (selectedDateFilter) {
       filters.dateKey = selectedDateFilter;
+    }
+    if (dateFrom) {
       filters.dateFrom = dateFrom.toISOString().split("T")[0];
+    }
+    if (dateTo) {
       filters.dateTo = dateTo.toISOString().split("T")[0];
     }
     return filters;
@@ -122,7 +296,9 @@ export default function SurveyTable() {
   const { status, data, error, isFetching, isPlaceholderData } = useQuery({
     queryKey: ["videos", page, filters],
     queryFn: async () => {
+      console.time("getVideoList");
       const data = await getVideoList(filters, page, 10);
+      console.timeEnd("getVideoList");
       return JSON.parse(data.data).Result;
     },
     placeholderData: keepPreviousData,
@@ -157,6 +333,7 @@ export default function SurveyTable() {
     // Reset date ranges when date filter field changes
     setDateFrom(undefined);
     setDateTo(undefined);
+
     // Reset to page 1 and refetch data with existing filters (excluding date filters)
     setPage(1);
     const currentFilters = getFilters(); // This will include search, state, district, block but not date filters
@@ -174,19 +351,53 @@ export default function SurveyTable() {
     setDateTo(range.to);
   };
 
+  const handleEditRouteName = (route: any) => {
+    setEditingRoute(route);
+    setNewRouteName(route.routeName);
+    setShowEditRouteModal(true);
+  };
+
+  const handleUpdateRouteName = async () => {
+    try {
+      if (!editingRoute || !newRouteName.trim()) return;
+
+      const { error } = await supabase
+        .from("surveys")
+        .update({ name: newRouteName.trim() })
+        .eq("id", editingRoute.surveyId);
+
+      if (error) throw error;
+
+      alert("Route name updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["videos"] });
+      setShowEditRouteModal(false);
+      setEditingRoute(null);
+      setNewRouteName("");
+    } catch (error: any) {
+      console.error("Error updating route name:", error);
+      alert("Failed to update route name: " + error.message);
+    }
+  };
+
+  const closeEditRouteModal = () => {
+    setShowEditRouteModal(false);
+    setEditingRoute(null);
+    setNewRouteName("");
+  };
+
   const getPageNumbers = () => {
     const pages = [];
     const maxPagesToShow = 5; // number of pages to show including ellipsis
 
-    if (10000 <= maxPagesToShow) {
-      for (let i = 1; i <= 10000; i++) pages.push(i);
+    if (100 <= maxPagesToShow) {
+      for (let i = 1; i <= 100; i++) pages.push(i);
     } else {
       if (page <= 3) {
         pages.push(1, 2, 3, 4, "...");
-      } else if (page >= 10000 - 2) {
-        pages.push(1, "...", 10000 - 3, 10000 - 2, 10000 - 1, 10000);
+      } else if (page >= 100 - 2) {
+        pages.push(1, "...", 100 - 3, 100 - 2, 100 - 1, 100);
       } else {
-        pages.push(1, "...", page - 1, page, page + 1, "...", 10000);
+        pages.push(1, "...", page - 1, page, page + 1, "...", 100);
       }
     }
     return pages;
@@ -208,13 +419,11 @@ export default function SurveyTable() {
   }, [data, isPlaceholderData, page, queryClient, filters]);
 
   useEffect(() => {
-    // Only trigger when all three date filter conditions are met, or when non-date filters change
     const hasCompleteDateFilter = selectedDateFilter && dateFrom && dateTo;
     const hasNonDateFilters =
       selectedState || selectedDistrict || selectedBlock || search;
-
-    // Only reset page and prefetch if we have complete date filters OR non-date filters
     if (hasCompleteDateFilter || hasNonDateFilters) {
+      console.log("calling date filter");
       setPage(1);
       queryClient.prefetchQuery({
         queryKey: ["videos", 1, filters],
@@ -236,33 +445,23 @@ export default function SurveyTable() {
     search,
   ]);
 
-  const handleDownloadGeoJSON = async (record: any) => {
-    if (!record || record.length === 0) return;
+  const handleDownloadGeoJSON = async (gpsTrackId: string) => {
     try {
-      const locationData = record;
-      const csvRows = [];
-      const headers = Object.keys(locationData[0]);
-      csvRows.push(headers.join(","));
-
-      for (const row of locationData) {
-        const values = headers.map((header) => {
-          let val = row[header];
-          if (typeof val === "string") val = `"${val.replace(/"/g, '""')}"`;
-          return val;
-        });
-        csvRows.push(values.join(","));
+      const { data, error } = await supabase
+        .from("gps_tracks")
+        .select("location_data")
+        .eq("id", gpsTrackId)
+        .single();
+      if (error) {
+        console.error("Error downloading GPS data as CSV:", error);
+        toast.error("Failed to download location data");
+        return;
       }
-
-      const csvString = csvRows.join("\n");
-      const blob = new Blob([csvString], { type: "text/csv" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${record.videoName || "gps_data"}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
+      console.log(data.location_data, "locationData");
+      toast.success("Location data downloaded successfully");
     } catch (error) {
       console.error("Error downloading GPS data as CSV:", error);
+      toast.error("Failed to download location data");
     }
   };
 
@@ -289,7 +488,7 @@ export default function SurveyTable() {
         return (
           <div
             className="flex gap-1 w-8 justify-center items-center "
-            onClick={() => handleDownloadGeoJSON(row.original.locationData)}
+            onClick={() => handleDownloadGeoJSON(row.original.gpsTrackId)}
           >
             <div className="rounded-full p-1 hover:bg-[#e2f0cb] transition">
               <DownloadIcon
@@ -317,6 +516,7 @@ export default function SurveyTable() {
               marginBottom: "0px",
             }}
             onClick={() => {
+              toast.info("Redirecting to video player...");
               router.push(`/video/${row.original.surveyId}`);
             }}
           >
@@ -324,9 +524,17 @@ export default function SurveyTable() {
               ? row.original.routeName.slice(0, 22) + "..."
               : row.original.routeName}
           </p>
-          <div className="cursor-pointer hidden group-hover:flex rounded-sm hover:bg-[#eed7fc] p-1">
-            <SquarePen size={14} />
-          </div>
+          {currentUser.role?.toLowerCase() === "admin" && (
+            <div
+              className="cursor-pointer hidden group-hover:flex rounded-sm hover:bg-[#eed7fc] p-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditRouteName(row.original);
+              }}
+            >
+              <SquarePen size={14} />
+            </div>
+          )}
         </div>
       ),
     },
@@ -413,9 +621,11 @@ export default function SurveyTable() {
       header: "Video Name",
       cell: ({ row }) => (
         <span
-          className={
-            "w-24 text-center text-xs font-semibold text-[#d68a00] bg-[#FFFCE6] border border-[#e06c00] rounded px-1 py-0.5 truncate"
-          }
+          className={`w-24 text-center text-xs font-semibold ${
+            row.original.videoName === "-"
+              ? "text-[#d68a00] bg-[#FFFCE6] border border-[#e06c00]"
+              : "text-[#296340] bg-[#94c748]"
+          }  rounded px-1 py-0.5 truncate`}
         >
           {row.original.videoName === "-"
             ? "Not Uploaded"
@@ -557,17 +767,33 @@ export default function SurveyTable() {
   ];
 
   return (
-    <div className="container py-10 w-[1050px]">
+    <div className="container py-10 max-w-[1050px] mx-auto">
       <div className="mb-4 w-full flex justify-between">
-        <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2">
-          <SearchIcon size={16} />
-          <Input
-            type="search"
-            placeholder="Search for route name"
-            className="border-none ring-none shadow-none focus:border-none focus:ring-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2">
+            <SearchIcon size={16} />
+            <Input
+              type="search"
+              placeholder="Search for route name"
+              className="border-none ring-none shadow-none focus:border-none focus:ring-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {(selectedState ||
+            selectedDistrict ||
+            selectedBlock ||
+            search ||
+            selectedDateFilter) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearAllFilters}
+              className="h-8 text-xs"
+            >
+              Clear Filters
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center gap-2 h-8">
@@ -766,6 +992,32 @@ export default function SurveyTable() {
           </PaginationContent>
         </Pagination>
       </div>
+
+      {/* Edit Route Name Modal */}
+      <Dialog open={showEditRouteModal} onOpenChange={setShowEditRouteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Route Name</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="route-name">Route Name</Label>
+              <Input
+                id="route-name"
+                value={newRouteName}
+                onChange={(e) => setNewRouteName(e.target.value)}
+                placeholder="Enter new route name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEditRouteModal}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateRouteName}>Update Route Name</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

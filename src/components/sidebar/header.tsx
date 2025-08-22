@@ -88,12 +88,17 @@ const Header = () => {
           </p>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                disabled={isSurveyLoading || !surveyData?.video_id}
+              >
                 <Link className="h-4 w-4 mr-1" />
                 Share Link
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="z-9999">
               <DialogHeader>
                 <DialogTitle>Share Survey Link</DialogTitle>
               </DialogHeader>

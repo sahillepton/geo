@@ -7,12 +7,13 @@ const Page = async () => {
   if (!user) {
     redirect("/login");
   }
+  const userData = JSON.parse(user.value);
   return (
     <div className="px-4">
       <h1 className="text-4xl font-extrabold tracking-tight text-balance text-[#262626]">
         Geotagged Videos
       </h1>
-      <SurveyTable />
+      <SurveyTable currentUser={userData} />
     </div>
   );
 };

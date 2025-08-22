@@ -10,6 +10,8 @@ import {
   SearchIcon,
   TrashIcon,
   UserIcon,
+  UsersIcon,
+  SettingsIcon,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Button } from "../ui/button";
@@ -52,6 +54,7 @@ import {
 import { Label } from "../ui/label";
 import { ArrowLeftIcon, PlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 // Define some color pairs for avatars
 const avatarColors = [
@@ -75,7 +78,6 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -153,13 +155,8 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
       filtered = filtered.filter((user) => user.role === selectedRole);
     }
 
-    // Apply location filter
-    if (selectedLocation) {
-      filtered = filtered.filter((user) => user.location === selectedLocation);
-    }
-
     return filtered;
-  }, [data?.users, search, selectedRole, selectedLocation]);
+  }, [data?.users, search, selectedRole]);
 
   // Apply pagination
   const paginatedUsers = useMemo(() => {
@@ -173,14 +170,10 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, selectedRole, selectedLocation]);
+  }, [search, selectedRole]);
 
   const handleRoleChange = (value: string) => {
     setSelectedRole(value);
-  };
-
-  const handleLocationChange = (value: string) => {
-    setSelectedLocation(value);
   };
 
   const handleEditUser = (user: any) => {
@@ -263,7 +256,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
 
         if (error) throw error;
 
-        alert("User created successfully");
+        toast.success("User created successfully");
         queryClient.invalidateQueries({ queryKey: ["users"] });
       } else {
         // Update existing user
@@ -290,14 +283,14 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
 
         if (error) throw error;
 
-        alert("User updated successfully");
+        toast.success("User updated successfully");
         queryClient.invalidateQueries({ queryKey: ["users"] });
       }
 
       closeModals();
     } catch (error: any) {
       console.error("Error saving user:", error);
-      alert("Failed to save user: " + error.message);
+      toast.error("Failed to save user: " + error.message);
     }
   };
 
@@ -312,12 +305,12 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
 
       if (error) throw error;
 
-      alert("User deleted successfully");
+      toast.success("User deleted successfully");
       queryClient.invalidateQueries({ queryKey: ["users"] });
       closeModals();
     } catch (error: any) {
       console.error("Error deleting user:", error);
-      alert("Failed to delete user: " + error.message);
+      toast.error("Failed to delete user: " + error.message);
     }
   };
 
@@ -355,13 +348,13 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
     {
       accessorKey: "username",
       header: () => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 justify-center">
           <UserIcon size={16} />
           <span>USERNAME</span>
         </div>
       ),
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 justify-center">
           <UserIcon size={14} className="text-gray-500" />
           <span className="text-sm font-medium text-gray-900">
             {row.original.username}
@@ -371,9 +364,14 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
     },
     {
       accessorKey: "email",
-      header: "EMAIL",
+      header: () => (
+        <div className="flex items-center gap-1 justify-center">
+          <MailIcon size={16} />
+          <span>EMAIL</span>
+        </div>
+      ),
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 justify-center">
           <MailIcon size={14} className="text-gray-500" />
           <span className="text-sm text-gray-700">{row.original.email}</span>
         </div>
@@ -381,9 +379,14 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
     },
     {
       accessorKey: "role",
-      header: "ROLE",
+      header: () => (
+        <div className="flex items-center gap-1 justify-center">
+          <UserIcon size={16} />
+          <span>ROLE</span>
+        </div>
+      ),
       cell: ({ row }) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 justify-center">
           <UserIcon size={14} className="text-gray-500" />
           <span className="text-sm font-medium text-gray-900">
             {row.original.role}
@@ -393,7 +396,12 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
     },
     {
       accessorKey: "manager",
-      header: "MANAGER",
+      header: () => (
+        <div className="flex items-center gap-1 justify-center">
+          <UsersIcon size={16} />
+          <span>MANAGER</span>
+        </div>
+      ),
       cell: ({ row }) => {
         const manager = data?.allUsers?.find(
           (user: any) => user.user_id === row.original.manager_id
@@ -409,78 +417,66 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
         );
       },
     },
-    {
-      accessorKey: "actions",
-      header: "ACTIONS",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2 justify-center">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleEditUser(row.original)}
-                className="h-8 w-8 p-0 hover:bg-blue-50"
-              >
-                <EditIcon size={16} className="text-blue-600" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Edit user</p>
-            </TooltipContent>
-          </Tooltip>
+    // Only show actions column for admin users
+    ...(currentUser.role?.toLowerCase() === "admin"
+      ? [
+          {
+            accessorKey: "actions",
+            header: () => (
+              <div className="flex items-center gap-1 justify-center">
+                <SettingsIcon size={16} />
+                <span>ACTIONS</span>
+              </div>
+            ),
+            cell: ({ row }) => (
+              <div className="flex items-center gap-2 justify-center">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditUser(row.original)}
+                      className="h-8 w-8 p-0 hover:bg-blue-50"
+                    >
+                      <EditIcon size={16} className="text-blue-600" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Edit user</p>
+                  </TooltipContent>
+                </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDeleteUser(row.original)}
-                className="h-8 w-8 p-0 hover:bg-red-50"
-              >
-                <TrashIcon size={16} className="text-red-600" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Delete user</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      ),
-    },
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteUser(row.original)}
+                      className="h-8 w-8 p-0 hover:bg-red-50"
+                    >
+                      <TrashIcon size={16} className="text-red-600" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete user</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
-  // Get unique roles and locations from the data
+  // Get unique roles from the data
   const roles = useMemo(() => {
     if (!data?.users) return [];
     return [...new Set(data.users.map((user) => user.role).filter(Boolean))];
   }, [data?.users]);
 
-  const locations = useMemo(() => {
-    if (!data?.users) return [];
-    return [
-      ...new Set(data.users.map((user) => user.location).filter(Boolean)),
-    ];
-  }, [data?.users]);
-
   return (
-    <div className="container py-10 w-[1050px]">
-      <div className="mb-4 w-full flex justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => router.back()}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeftIcon size={16} />
-            Back
-          </Button>
-          <Button onClick={handleAddUser} className="flex items-center gap-2">
-            <PlusIcon size={16} />
-            Add User
-          </Button>
-        </div>
-
+    <div className="container py-10 max-w-[1050px] mx-auto">
+      <div className="mb-4 w-full flex justify-between items-center">
         <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2">
           <SearchIcon size={16} />
           <Input
@@ -492,7 +488,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
           />
         </div>
 
-        <div className="flex items-center gap-2 h-8">
+        <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -524,36 +520,13 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
             </PopoverContent>
           </Popover>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-[100px] justify-between font-normal text-xs h-8 p-1"
-              >
-                <span className="truncate flex-1 text-left">
-                  {selectedLocation || "Location"}
-                </span>
-                <ChevronDownIcon className="h-3 w-3 flex-shrink-0 ml-1" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[180px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search locations..." />
-                <CommandList>
-                  <CommandEmpty>No location found.</CommandEmpty>
-                  {locations.map((location, idx) => (
-                    <CommandItem
-                      key={idx}
-                      value={location}
-                      onSelect={() => handleLocationChange(location)}
-                    >
-                      {location}
-                    </CommandItem>
-                  ))}
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          <Button
+            onClick={handleAddUser}
+            className="flex items-center gap-2 h-8"
+          >
+            <PlusIcon size={16} />
+            Add User
+          </Button>
         </div>
       </div>
 

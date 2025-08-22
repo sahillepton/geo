@@ -224,13 +224,31 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
     }
 
     if (filters.dateKey && filters.dateFrom && filters.dateTo) {
+
+      console.log(filters.dateKey, filters.dateFrom, filters.dateTo, 'date filters')
+
       const column = filters.dateKey === 'Mobile_Video_Capture_Time' ? 'timestamp' :
                     filters.dateKey === 'Created_On' ? 'created_at' : null;
       
       if (column) {
-        query = query
-          .gte(column, filters.dateFrom)
-          .lte(column, filters.dateTo);
+        if (column === 'timestamp') {
+          // Convert ISO date (YYYY-MM-DD) to DD-MM-YYYY format for timestamp column
+          const fromDate = new Date(filters.dateFrom);
+          const toDate = new Date(filters.dateTo);
+          
+          // Format as DD-MM-YYYY to match database format
+          const fromDateFormatted = `${String(fromDate.getDate()).padStart(2, '0')}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-${fromDate.getFullYear()}`;
+          const toDateFormatted = `${String(toDate.getDate()).padStart(2, '0')}-${String(toDate.getMonth() + 1).padStart(2, '0')}-${toDate.getFullYear()}`;
+          
+          query = query
+            .gte(column, fromDateFormatted)
+            .lte(column, toDateFormatted);
+        } else {
+          // For created_at column, use ISO format as is
+          query = query
+            .gte(column, filters.dateFrom)
+            .lte(column, filters.dateTo);
+        }
       }
     }
 
@@ -247,10 +265,10 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
         supabase.from('videos').select('*').in('id', videoIds) :
         { data: [] },
       gpsTrackIds.length > 0 ?
-        supabase.from('gps_tracks').select('*').in('id', gpsTrackIds) :
+        supabase.from('gps_tracks').select('id, entity_id').in('id', gpsTrackIds) :
         { data: [] },
       userIds.length > 0 ?
-        supabase.from('users').select('*').in('user_id', userIds) :
+        supabase.from('users').select('user_name').in('user_id', userIds) :
         { data: [] }
     ]);
 
@@ -265,22 +283,6 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
           const video = videosMap.get(survey.video_id) || {};
           const gpsTrack = gpsTracksMap.get(survey.gps_track_id) || {};
           const user = usersMap.get(survey.user_id) || {};
-          
-          let locationData = [];
-          
-          try {
-            if (gpsTrack.location_data) {
-              if (typeof gpsTrack.location_data === 'string') {
-                locationData = JSON.parse(gpsTrack.location_data);
-              } else {
-                locationData = gpsTrack.location_data;
-              }
-            }
-          } catch (e) {
-            console.error('Error parsing location data:', e);
-            console.log('Raw location data:', gpsTrack.location_data);
-          }
-
           return {
             hasMore: true,
             routeName: survey.name || "-",
@@ -294,9 +296,9 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
             createdBy: user.username || "System",
             userId: survey.user_id,
             verifiedStatus: survey.is_video_uploaded ? "APPROVED" : "PENDING",
-            
+            gpsTrackId: survey.gps_track_id,
             videoUrl: video.url || null,
-            locationData: locationData,
+            locationData: [],
             entityName: gpsTrack.entity_id || "-",
             state: survey.state || "-",
             district: survey.district || "-",
@@ -317,6 +319,107 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
     };
   }
 } 
+
+export async function getVideoList2(filters: VideoListFilters, page = 1, pageSize = 10) {
+  try {
+    const supabase = await createClient();
+    
+    let query = supabase
+      .from("surveys")
+      .select(`
+        id,
+        name,
+        timestamp,
+        is_video_uploaded,
+        created_at,
+        state,
+        district,
+        block,
+        ring,
+        child_ring,
+        videos (id, name, duration, url, created_at),
+        gps_tracks (id, entity_id, location_data),
+        users (user_id, username)
+      `, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range((page - 1) * pageSize, page * pageSize - 1);
+
+    // Apply filters
+    if (filters.locationName) query = query.ilike("name", `%${filters.locationName}%`);
+    if (filters.state) query = query.ilike("state", `%${filters.state}%`);
+    if (filters.district) query = query.ilike("district", `%${filters.district}%`);
+    if (filters.block) query = query.ilike("block", `%${filters.block}%`);
+    if (filters.ring) query = query.eq("ring", filters.ring);
+    if (filters.childRing) query = query.ilike("child_ring", `%${filters.childRing}%`);
+
+    // Role-based filters
+    if (filters.userRole) {
+      if (filters.userRole.toLowerCase() === "manager") {
+        const { data: managedUsers } = await supabase
+          .from("users")
+          .select("user_id")
+          .eq("manager_id", filters.userId);
+
+        const ids = (managedUsers || []).map(u => u.user_id).concat(filters.userId);
+        query = query.in("user_id", ids);
+      } else if (filters.userRole.toLowerCase() === "surveyor") {
+        query = query.eq("user_id", filters.userId);
+      }
+    }
+
+    // Date filters
+    if (filters.dateKey && filters.dateFrom && filters.dateTo) {
+      const column = filters.dateKey === "Mobile_Video_Capture_Time" ? "timestamp" :
+                    filters.dateKey === "Created_On" ? "created_at" : null;
+      if (column) {
+        query = query
+          .gte(column, filters.dateFrom)
+          .lte(column, filters.dateTo);
+      }
+    }
+
+    const { data: surveys, error, count } = await query;
+    if (error) throw error;
+
+    return {
+      data: JSON.stringify({
+        Status: "5001",
+        Result: surveys.map(s => ({
+          hasMore: page * pageSize < (count ?? 0),
+          routeName: s.name || "-",
+          surveyId: s.id,
+          videoName: s.videos?.name || "-",
+          locationName: "-",
+          videoDuration: s.videos?.duration || "-",
+          mobileVideoCaptureTime: s.created_at,
+          videoId: s.videos?.id,
+          createdOn: s.videos?.created_at,
+          createdBy: s.users?.username || "System",
+          userId: s.users?.user_id,
+          verifiedStatus: s.is_video_uploaded ? "APPROVED" : "PENDING",
+          videoUrl: s.videos?.url || null,
+          locationData: s.gps_tracks?.location_data || [],
+          entityName: s.gps_tracks?.entity_id || "-",
+          state: s.state || "-",
+          district: s.district || "-",
+          block: s.block || "-",
+          ring: s.ring || "-",
+          childRing: s.child_ring || "-"
+        }))
+      })
+    };
+
+  } catch (error) {
+    console.error("Error:", error);
+    return {
+      data: JSON.stringify({
+        Status: "5000",
+        Message: error.message
+      })
+    };
+  }
+}
+
 
 
 export async function getStates() {

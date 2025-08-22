@@ -74,7 +74,11 @@ export function DataTable<TData, TValue>({
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="cursor-pointer"
+                className={`cursor-pointer ${
+                  !row.original.videoId || row.original.videoId === null
+                    ? "bg-yellow-50"
+                    : ""
+                }`}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
