@@ -15,11 +15,13 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
+import Papa from "papaparse";
 import {
   CalendarIcon,
   ChevronDownIcon,
   ClockIcon,
   DownloadIcon,
+  Loader2,
   SearchIcon,
   SquarePen,
 } from "lucide-react";
@@ -98,6 +100,8 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
   const [showEditRouteModal, setShowEditRouteModal] = useState(false);
   const [editingRoute, setEditingRoute] = useState<any>(null);
   const [newRouteName, setNewRouteName] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadingGpsTrackId, setDownloadingGpsTrackId] = useState("");
 
   // Load all filters from localStorage on component mount
   useEffect(() => {
@@ -447,9 +451,11 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
 
   const handleDownloadGeoJSON = async (gpsTrackId: string) => {
     try {
+      setIsDownloading(true);
+      setDownloadingGpsTrackId(gpsTrackId);
       const { data, error } = await supabase
         .from("gps_tracks")
-        .select("location_data")
+        .select("location_data, name")
         .eq("id", gpsTrackId)
         .single();
       if (error) {
@@ -457,11 +463,23 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         toast.error("Failed to download location data");
         return;
       }
-      console.log(data.location_data, "locationData");
-      toast.success("Location data downloaded successfully");
+      const csv = Papa.unparse(data.location_data);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${data.name}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`${data.name} downloaded successfully`);
     } catch (error) {
       console.error("Error downloading GPS data as CSV:", error);
       toast.error("Failed to download location data");
+    } finally {
+      setIsDownloading(false);
+      setDownloadingGpsTrackId("");
     }
   };
 
@@ -491,10 +509,18 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
             onClick={() => handleDownloadGeoJSON(row.original.gpsTrackId)}
           >
             <div className="rounded-full p-1 hover:bg-[#e2f0cb] transition">
-              <DownloadIcon
-                size={16}
-                className="cursor-pointer text-[#6a9a23]"
-              />
+              {isDownloading &&
+              downloadingGpsTrackId === row.original.gpsTrackId ? (
+                <Loader2
+                  size={16}
+                  className="animate-spin cursor-pointer text-[#6a9a23]"
+                />
+              ) : (
+                <DownloadIcon
+                  size={16}
+                  className="cursor-pointer text-[#6a9a23]"
+                />
+              )}
             </div>
           </div>
         );
@@ -641,16 +667,10 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
           <span className="w-16 text-center text-xs gap-2 flex items-center font-semibold text-[#d68a00] bg-[#FFFCE6] border border-[#e06c00] rounded px-1 py-0.5 ">
-            {row.original.locationData.length > 0 ? (
+            {row.original.duration > 0 ? (
               <>
                 <ClockIcon size={14} className="ml-1" />
-                {sumTimestamps(
-                  parseInt(
-                    row.original.locationData[
-                      row.original.locationData.length - 1
-                    ].timeStamp
-                  )
-                )}
+                {sumTimestamps(row.original.duration)}
               </>
             ) : (
               "00:00"
@@ -738,11 +758,15 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       accessorKey: "verified_on",
       header: "Verified On",
       cell: ({ row }) => {
-        return (
+        return row.original.verifiedOn ? (
           <div className="flex items-center gap-1 justify-center w-28 text-xs font-semibold text-[#46474b] bg-[#f2f0fc] border border-[#46474b] rounded px-1 py-0.5">
             <CalendarIcon size={14} />
-            <span>{row.original.verifiedOn}</span>
+            <span>{moment(row.original.verifiedOn).format("DD MMM YYYY")}</span>
           </div>
+        ) : (
+          <span className="text-xs font-semibold text-[#46474b] bg-[#f2f0fc] border border-[#46474b] rounded px-1 py-0.5">
+            Not Verified
+          </span>
         );
       },
     },
@@ -753,13 +777,19 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         const color = getRandomAvatarColor();
         return (
           <div className="flex items-center justify-center">
-            <Avatar className="w-6 h-6 text-xs flex items-center justify-center">
-              <AvatarFallback
-                className={`${color.bg} ${color.text} font-semibold`}
-              >
-                {row.original.createdBy.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            {row.original.verifiedBy ? (
+              <Avatar className="w-6 h-6 text-xs flex items-center justify-center">
+                <AvatarFallback
+                  className={`${color.bg} ${color.text} font-semibold`}
+                >
+                  {row.original.verifiedBy.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <span className="text-xs font-semibold text-[#46474b] bg-[#f2f0fc] border border-[#46474b] rounded px-1 py-0.5">
+                Not Verified
+              </span>
+            )}
           </div>
         );
       },

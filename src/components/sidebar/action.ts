@@ -265,7 +265,7 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
         supabase.from('videos').select('*').in('id', videoIds) :
         { data: [] },
       gpsTrackIds.length > 0 ?
-        supabase.from('gps_tracks').select('id, entity_id').in('id', gpsTrackIds) :
+        supabase.from('gps_tracks').select('id, entity_id, duration').in('id', gpsTrackIds) :
         { data: [] },
       userIds.length > 0 ?
         supabase.from('users').select('user_name').in('user_id', userIds) :
@@ -295,7 +295,7 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
             createdOn: video.created_at,
             createdBy: user.username || "System",
             userId: survey.user_id,
-            verifiedStatus: survey.is_video_uploaded ? "APPROVED" : "PENDING",
+            verifiedStatus: video.verified_by ? "APPROVED" : "PENDING",
             gpsTrackId: survey.gps_track_id,
             videoUrl: video.url || null,
             locationData: [],
@@ -304,7 +304,10 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
             district: survey.district || "-",
             block: survey.block || "-",
             ring: survey.ring || "-",
-            childRing: survey.child_ring || "-"
+            childRing: survey.child_ring || "-",
+            duration: gpsTrack.duration || 0,
+            verifiedBy: video.verified_by || null,
+            verifiedOn: video.verified_on || null
           };
         })
       })
@@ -457,5 +460,17 @@ export async function getStateBlocksAndDistricts() {
     return [];
   }
 
+  return data;
+}
+
+
+export async function verifyVideo(videoId: string, verified_by : string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("videos").update({
+    verified_by : verified_by,
+    verified_on : new Date().toISOString()
+  }).eq("id", videoId)
+
+  if (error) throw error;
   return data;
 }

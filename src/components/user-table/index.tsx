@@ -55,6 +55,9 @@ import { Label } from "../ui/label";
 import { ArrowLeftIcon, PlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import AddUserModal from "./add-user-modal";
+import EditUserModel from "./edit-user-model";
+import DeleteUserModal from "./delete-user-modal";
 
 // Define some color pairs for avatars
 const avatarColors = [
@@ -73,8 +76,6 @@ const getRandomAvatarColor = () => {
 };
 
 export default function UserTable({ currentUser }: { currentUser: any }) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
@@ -83,18 +84,10 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [deletingUser, setDeletingUser] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    role: "",
-    location: "",
-    manager_id: "",
-  });
 
   // Fetch all users data
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["users"],
+    queryKey: ["users-management"],
     queryFn: async () => {
       const userRole = currentUser.role?.toLowerCase();
       if (userRole === "admin") {
@@ -133,8 +126,6 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
     },
   });
 
-  console.log(data, "management");
-
   // Client-side filtering and pagination
   const filteredUsers = useMemo(() => {
     if (!data?.users) return [];
@@ -171,148 +162,6 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
   useEffect(() => {
     setPage(1);
   }, [search, selectedRole]);
-
-  const handleRoleChange = (value: string) => {
-    setSelectedRole(value);
-  };
-
-  const handleEditUser = (user: any) => {
-    setEditingUser(user);
-    setFormData({
-      username: user.username || "",
-      email: user.email || "",
-      password: "",
-      role: user.role || "",
-      location: user.location || "",
-      manager_id: user.manager_id || "no-manager",
-    });
-    setShowEditModal(true);
-  };
-
-  const handleDeleteUser = (user: any) => {
-    setDeletingUser(user);
-    setShowDeleteModal(true);
-  };
-
-  const handleAddUser = () => {
-    setFormData({
-      username: "",
-      email: "",
-      password: "",
-      role: "",
-      location: "",
-      manager_id: "no-manager",
-    });
-    setShowAddModal(true);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      username: "",
-      email: "",
-      password: "",
-      role: "",
-      location: "",
-      manager_id: "no-manager",
-    });
-    setEditingUser(null);
-    setDeletingUser(null);
-  };
-
-  const closeModals = () => {
-    setShowAddModal(false);
-    setShowEditModal(false);
-    setShowDeleteModal(false);
-    resetForm();
-  };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      console.log(values, "values");
-      const isAdmin = currentUser.role?.toLowerCase() === "admin";
-      const isManager = currentUser.role?.toLowerCase() === "manager";
-
-      if (isManager) {
-        values.role = "surveyor";
-        values.manager_id = currentUser.user_id;
-      }
-
-      if (!editingUser) {
-        // Create new user
-        const { data, error } = await supabase
-          .from("users")
-          .insert([
-            {
-              username: values.username,
-              email: values.email,
-              password: values.password,
-              role: values.role,
-              location: values.location,
-              manager_id:
-                values.manager_id === "no-manager" ? null : values.manager_id,
-            },
-          ])
-          .select();
-
-        if (error) throw error;
-
-        toast.success("User created successfully");
-        queryClient.invalidateQueries({ queryKey: ["users"] });
-      } else {
-        // Update existing user
-        const updateData: any = {
-          username: values.username,
-          email: values.email,
-          location: values.location,
-        };
-
-        if (isAdmin) {
-          updateData.role = values.role;
-          updateData.manager_id =
-            values.manager_id === "no-manager" ? null : values.manager_id;
-        }
-
-        if (values.password) {
-          updateData.password = values.password;
-        }
-
-        const { error } = await supabase
-          .from("users")
-          .update(updateData)
-          .eq("user_id", editingUser.user_id);
-
-        if (error) throw error;
-
-        toast.success("User updated successfully");
-        queryClient.invalidateQueries({ queryKey: ["users"] });
-      }
-
-      closeModals();
-    } catch (error: any) {
-      console.error("Error saving user:", error);
-      toast.error("Failed to save user: " + error.message);
-    }
-  };
-
-  const handleDeleteSubmit = async () => {
-    try {
-      if (!deletingUser) return;
-
-      const { error } = await supabase
-        .from("users")
-        .delete()
-        .eq("user_id", deletingUser.user_id);
-
-      if (error) throw error;
-
-      toast.success("User deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      closeModals();
-    } catch (error: any) {
-      console.error("Error deleting user:", error);
-      toast.error("Failed to delete user: " + error.message);
-    }
-  };
 
   const getPageNumbers = () => {
     const pages = [];
@@ -418,7 +267,8 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
       },
     },
     // Only show actions column for admin users
-    ...(currentUser.role?.toLowerCase() === "admin"
+    ...(currentUser.role?.toLowerCase() === "admin" ||
+    currentUser.role?.toLowerCase() === "manager"
       ? [
           {
             accessorKey: "actions",
@@ -435,7 +285,10 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEditUser(row.original)}
+                      onClick={() => {
+                        setEditingUser(row.original);
+                        setShowEditModal(true);
+                      }}
                       className="h-8 w-8 p-0 hover:bg-blue-50"
                     >
                       <EditIcon size={16} className="text-blue-600" />
@@ -451,7 +304,10 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteUser(row.original)}
+                      onClick={() => {
+                        setDeletingUser(row.original);
+                        setShowDeleteModal(true);
+                      }}
                       className="h-8 w-8 p-0 hover:bg-red-50"
                     >
                       <TrashIcon size={16} className="text-red-600" />
@@ -510,7 +366,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
                     <CommandItem
                       key={idx}
                       value={role}
-                      onSelect={() => handleRoleChange(role)}
+                      onSelect={() => setSelectedRole(role)}
                     >
                       {role}
                     </CommandItem>
@@ -519,23 +375,22 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
               </Command>
             </PopoverContent>
           </Popover>
-
-          <Button
-            onClick={handleAddUser}
-            className="flex items-center gap-2 h-8"
-          >
-            <PlusIcon size={16} />
-            Add User
-          </Button>
+          {currentUser.role?.toLowerCase() !== "surveyor" && (
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 h-8"
+            >
+              <PlusIcon size={16} />
+              Add User
+            </Button>
+          )}
         </div>
       </div>
-
       <DataTable
         columns={columns}
         data={paginatedUsers}
         isFetching={isLoading}
       />
-
       <div className="flex items-center space-x-2 py-4 mt-4">
         <Pagination>
           <PaginationContent>
@@ -577,257 +432,31 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
           </PaginationContent>
         </Pagination>
       </div>
-
       {/* Add User Modal */}
-      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                value={formData.username}
-                onChange={(e) =>
-                  setFormData({ ...formData, username: e.target.value })
-                }
-                placeholder="Enter username"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                placeholder="Enter email"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                placeholder="Enter password"
-              />
-            </div>
-            <div>
-              <Label htmlFor="role">Role</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, role: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="surveyor">Surveyor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                placeholder="Enter location"
-              />
-            </div>
-            <div>
-              <Label htmlFor="manager">Manager</Label>
-              <Select
-                value={formData.manager_id}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, manager_id: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select manager (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="no-manager">No Manager</SelectItem>
-                  {data?.allUsers
-                    ?.filter((user: any) => user.role === "manager")
-                    .map((user: any) => (
-                      <SelectItem key={user.user_id} value={user.user_id}>
-                        {user.username}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModals}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                handleSubmit(formData);
-              }}
-            >
-              Add User
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      <AddUserModal
+        currentUser={currentUser}
+        data={data}
+        showAddModal={showAddModal}
+        setShowAddModal={setShowAddModal}
+      />
       {/* Edit User Modal */}
-      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-username">Username</Label>
-              <Input
-                id="edit-username"
-                value={formData.username}
-                onChange={(e) =>
-                  setFormData({ ...formData, username: e.target.value })
-                }
-                placeholder="Enter username"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-email">Email</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                placeholder="Enter email"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-password">
-                Password (leave blank to keep current)
-              </Label>
-              <Input
-                id="edit-password"
-                type="password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                placeholder="Enter new password"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-role">Role</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, role: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="surveyor">Surveyor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="edit-location">Location</Label>
-              <Input
-                id="edit-location"
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                placeholder="Enter location"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-manager">Manager</Label>
-              <Select
-                value={formData.manager_id}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, manager_id: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select manager (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="no-manager">No Manager</SelectItem>
-                  {data?.allUsers
-                    ?.filter((user: any) => user.role === "manager")
-                    .map((user: any) => (
-                      <SelectItem key={user.user_id} value={user.user_id}>
-                        {user.username}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModals}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                handleSubmit(formData);
-              }}
-            >
-              Update User
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      {editingUser && (
+        <EditUserModel
+          currentUser={currentUser}
+          data={data}
+          showEditModal={showEditModal}
+          setShowEditModal={setShowEditModal}
+          user={editingUser}
+          setEditingUser={setEditingUser}
+        />
+      )}
       {/* Delete User Modal */}
-      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Are you sure you want to delete user{" "}
-              <strong>{deletingUser?.username}</strong>? This action cannot be
-              undone.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModals}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                handleDeleteSubmit();
-              }}
-            >
-              Delete User
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteUserModal
+        showDeleteModal={showDeleteModal}
+        setShowDeleteModal={setShowDeleteModal}
+        deletingUser={deletingUser}
+        setDeletingUser={setDeletingUser}
+      />
     </div>
   );
 }

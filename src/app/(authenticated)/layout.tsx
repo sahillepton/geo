@@ -25,7 +25,7 @@ const Layout = async ({ children }: { children: React.ReactNode }) => {
       )}
 
       <SidebarInset>
-        {user && userData && <Header />}
+        {user && userData && <Header user={userData} />}
         {children}
       </SidebarInset>
     </SidebarProvider>

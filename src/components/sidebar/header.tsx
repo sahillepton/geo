@@ -14,32 +14,44 @@ import { Button } from "../ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { Copy, Link } from "lucide-react";
+import { Check, Copy, Link, Loader2 } from "lucide-react";
+import { User } from "@/lib/types";
+import { verifyVideo } from "./action";
+import { toast } from "sonner";
 
-const Header = () => {
+const Header = ({ user }: { user: User }) => {
   const pathname = usePathname();
   const breadcrumbItems = pathname.split("/").filter((item) => item !== "");
   //console.log(breadcrumbItems);
   const surveyId = breadcrumbItems.length > 1 ? breadcrumbItems[1] : null;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  console.log(user, "user role");
 
   const { data: surveyData, isLoading: isSurveyLoading } = useQuery({
     queryKey: ["survey", surveyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("surveys")
-        .select("*")
+        .select("*, videos(verified_by))")
         .eq("id", surveyId)
         .single();
       return data;
     },
     enabled: !!surveyId,
   });
+
+  //console.log(surveyData, "survey data in header ");
+
+  const isVideoVerified = surveyData?.videos[0]?.verified_by;
 
   const currentLink = typeof window !== "undefined" ? window.location.href : "";
 
@@ -116,6 +128,59 @@ const Header = () => {
               </div>
             </DialogContent>
           </Dialog>
+          {user.role === "admin" && (
+            <Dialog>
+              <DialogTrigger asChild disabled={isVideoVerified}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 bg-[#baf3db] hover:bg-[#baf3db] text-[#2196ae] hover:text-[#2196ae]"
+                  disabled={
+                    isSurveyLoading || !surveyData?.video_id || isVideoVerified
+                  }
+                >
+                  {isVideoVerified ? (
+                    <Check className="h-4 w-4 mr-1" />
+                  ) : (
+                    <Link className="h-4 w-4 mr-1" />
+                  )}
+                  {isVideoVerified ? "Verified" : "Verify Video"}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="z-9999">
+                <DialogHeader>
+                  <DialogTitle>Are you absolutely sure?</DialogTitle>
+                  <DialogDescription>
+                    This action cannot be undone. This will permanently mark the
+                    video as verified
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    disabled={isVerifying}
+                    onClick={async () => {
+                      setIsVerifying(true);
+                      try {
+                        await verifyVideo(surveyData?.video_id, user.user_id);
+                        toast.success("Video verified successfully");
+                      } catch {
+                        toast.error("Failed to verify video");
+                      } finally {
+                        setIsVerifying(false);
+                        setIsDialogOpen(false);
+                      }
+                    }}
+                  >
+                    {isVerifying ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      "Verify"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       )}
     </header>

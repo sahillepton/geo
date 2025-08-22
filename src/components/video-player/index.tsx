@@ -520,57 +520,147 @@ const SimpleMap = ({
 
       setMap(leafletMap);
 
-      // Start & End markers (hidden, just for reference)
+      // Create start marker with custom icon and label
+      const startIcon = L.divIcon({
+        className: "custom-marker start-marker",
+        html: `
+          <div style="
+            width: 32px; 
+            height: 32px; 
+            background: linear-gradient(135deg, #10B981, #059669);
+            border: 4px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            position: relative;
+          ">S</div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+
       startMarkerRef.current = L.marker(
         [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
         {
+          icon: startIcon,
           title: "Start Point",
         }
       ).addTo(leafletMap);
-      startMarkerRef.current.setOpacity(0); // Hide the marker
+
+      // Add start point label
+      L.marker(
+        [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
+        {
+          icon: L.divIcon({
+            className: "marker-label",
+            html: `
+            <div style="
+              background: rgba(16, 185, 129, 0.9);
+              color: white;
+              padding: 4px 8px;
+              border-radius: 12px;
+              font-size: 11px;
+              font-weight: 600;
+              white-space: nowrap;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+              border: 1px solid rgba(255,255,255,0.3);
+            ">START</div>
+          `,
+            iconSize: [60, 20],
+            iconAnchor: [30, 25],
+          }),
+        }
+      ).addTo(leafletMap);
+
+      // Create end marker with custom icon and label
+      const endIcon = L.divIcon({
+        className: "custom-marker end-marker",
+        html: `
+          <div style="
+            width: 32px; 
+            height: 32px; 
+            background: linear-gradient(135deg, #EF4444, #DC2626);
+            border: 4px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            position: relative;
+          ">E</div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
 
       endMarkerRef.current = L.marker(
         [parseFloat(lastPoint.Latitude), parseFloat(lastPoint.Longitude)],
         {
+          icon: endIcon,
           title: "End Point",
         }
       ).addTo(leafletMap);
-      endMarkerRef.current.setOpacity(0); // Hide the marker
 
-      // Create moving marker as a red circle
+      // Add end point label
+      L.marker(
+        [parseFloat(lastPoint.Latitude), parseFloat(lastPoint.Longitude)],
+        {
+          icon: L.divIcon({
+            className: "marker-label",
+            html: `
+            <div style="
+              background: rgba(239, 68, 68, 0.9);
+              color: white;
+              padding: 4px 8px;
+              border-radius: 12px;
+              font-size: 11px;
+              font-weight: 600;
+              white-space: nowrap;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+              border: 1px solid rgba(255,255,255,0.3);
+            ">END</div>
+          `,
+            iconSize: [50, 20],
+            iconAnchor: [25, 25],
+          }),
+        }
+      ).addTo(leafletMap);
+
+      // Create moving marker as a blue circle with shadow and pulse effect
       movingMarkerRef.current = L.circle(
         [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
         {
-          radius: 8,
-          color: "#FF0000",
-          fillColor: "#FF0000",
-          fillOpacity: 1,
-          weight: 2,
+          radius: 12,
+          color: "#3B82F6",
+          fillColor: "#3B82F6",
+          fillOpacity: 0.9,
+          weight: 3,
         }
       ).addTo(leafletMap);
 
-      // Add circles at start and end points
-      L.circle(
+      // Add a pulsing circle around the moving marker
+      const pulseCircle = L.circle(
         [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
         {
-          radius: 10,
-          color: "#00FF00",
-          fillColor: "#00FF00",
-          fillOpacity: 0.7,
+          radius: 20,
+          color: "#3B82F6",
+          fillColor: "#3B82F6",
+          fillOpacity: 0.2,
           weight: 2,
+          dashArray: "5, 5",
         }
       ).addTo(leafletMap);
 
-      L.circle(
-        [parseFloat(lastPoint.Latitude), parseFloat(lastPoint.Longitude)],
-        {
-          radius: 10,
-          color: "#00FF00",
-          fillColor: "#00FF00",
-          fillOpacity: 0.7,
-          weight: 2,
-        }
-      ).addTo(leafletMap);
+      // Store pulse circle reference for animation
+      movingMarkerRef.current.pulseCircle = pulseCircle;
 
       // Add zoom control at bottom right
       L.control
@@ -579,12 +669,25 @@ const SimpleMap = ({
         })
         .addTo(leafletMap);
 
-      // Polyline
+      // Polyline with aesthetic styling
       const smoothedPath = getSmoothedPath(data);
       polylineRef.current = L.polyline(smoothedPath, {
-        color: "#FF0000",
-        weight: 6,
-        opacity: 0.8,
+        color: "#8B5CF6", // Purple color
+        weight: 4,
+        opacity: 0.9,
+        lineCap: "round",
+        lineJoin: "round",
+        dashArray: "10, 5", // Dashed line effect
+        dashOffset: "0",
+      }).addTo(leafletMap);
+
+      // Add a shadow effect with a thicker, semi-transparent line behind
+      L.polyline(smoothedPath, {
+        color: "#1F2937",
+        weight: 8,
+        opacity: 0.3,
+        lineCap: "round",
+        lineJoin: "round",
       }).addTo(leafletMap);
 
       // Fit map to show the whole route
@@ -595,10 +698,11 @@ const SimpleMap = ({
         [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
         {
           radius: 0,
-          color: "#4285F4",
-          fillColor: "#4285F4",
-          fillOpacity: 0.2,
-          weight: 1,
+          color: "#F59E0B",
+          fillColor: "#F59E0B",
+          fillOpacity: 0.15,
+          weight: 2,
+          dashArray: "5, 5",
         }
       ).addTo(leafletMap);
     }, 100);
@@ -696,6 +800,10 @@ const SimpleMap = ({
 
       const pos = L.latLng(lat, lng);
       movingMarkerRef.current?.setLatLng(pos);
+      // Update pulse circle position
+      if (movingMarkerRef.current?.pulseCircle) {
+        movingMarkerRef.current.pulseCircle.setLatLng(pos);
+      }
       // Don't auto-pan the map - let user control it
       // map.panTo(pos);
 
@@ -769,23 +877,195 @@ const SimpleMap = ({
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {/* Enhanced Info Panel */}
       <div
         style={{
           position: "absolute",
-          top: 10,
-          left: 10,
+          top: 15,
+          left: 15,
           zIndex: 999,
-          padding: 6,
-          background: "rgba(0,0,0,0.5)",
-          color: "#fff",
-          borderRadius: 4,
+          padding: "12px 16px",
+          background: "rgba(255, 255, 255, 0.95)",
+          color: "#1F2937",
+          borderRadius: "12px",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+          border: "1px solid rgba(0, 0, 0, 0.1)",
+          backdropFilter: "blur(10px)",
+          minWidth: "200px",
         }}
       >
-        <div>Timestamp: {formatTime(timestamp)}</div>
-        <div>Lat: {coords.lat}</div>
-        <div>Lng: {coords.lng}</div>
-        <div>Distance: {distance} m</div>
-        <div>Accuracy: {accuracy} cm</div>
+        <div
+          style={{
+            fontSize: "14px",
+            fontWeight: "600",
+            marginBottom: "8px",
+            color: "#374151",
+            borderBottom: "1px solid #E5E7EB",
+            paddingBottom: "4px",
+          }}
+        >
+          📍 Current Position
+        </div>
+        <div style={{ fontSize: "12px", lineHeight: "1.4" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "4px",
+            }}
+          >
+            <span style={{ color: "#6B7280" }}>⏱️ Time:</span>
+            <span style={{ fontWeight: "600", color: "#1F2937" }}>
+              {formatTime(timestamp)}
+            </span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "4px",
+            }}
+          >
+            <span style={{ color: "#6B7280" }}>📍 Lat:</span>
+            <span style={{ fontWeight: "600", color: "#1F2937" }}>
+              {coords.lat}
+            </span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "4px",
+            }}
+          >
+            <span style={{ color: "#6B7280" }}>📍 Lng:</span>
+            <span style={{ fontWeight: "600", color: "#1F2937" }}>
+              {coords.lng}
+            </span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "4px",
+            }}
+          >
+            <span style={{ color: "#6B7280" }}>📏 Distance:</span>
+            <span style={{ fontWeight: "600", color: "#1F2937" }}>
+              {distance} m
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: "#6B7280" }}>🎯 Accuracy:</span>
+            <span style={{ fontWeight: "600", color: "#1F2937" }}>
+              {accuracy} cm
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 15,
+          left: 15,
+          zIndex: 999,
+          padding: "12px 16px",
+          background: "rgba(255, 255, 255, 0.95)",
+          color: "#1F2937",
+          borderRadius: "12px",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+          border: "1px solid rgba(0, 0, 0, 0.1)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "14px",
+            fontWeight: "600",
+            marginBottom: "8px",
+            color: "#374151",
+            borderBottom: "1px solid #E5E7EB",
+            paddingBottom: "4px",
+          }}
+        >
+          🗺️ Map Legend
+        </div>
+        <div style={{ fontSize: "12px", lineHeight: "1.4" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginBottom: "4px",
+            }}
+          >
+            <div
+              style={{
+                width: "12px",
+                height: "12px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #10B981, #059669)",
+                marginRight: "8px",
+                border: "2px solid #ffffff",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              }}
+            ></div>
+            <span>Start Point</span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginBottom: "4px",
+            }}
+          >
+            <div
+              style={{
+                width: "12px",
+                height: "12px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #EF4444, #DC2626)",
+                marginRight: "8px",
+                border: "2px solid #ffffff",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              }}
+            ></div>
+            <span>End Point</span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              marginBottom: "4px",
+            }}
+          >
+            <div
+              style={{
+                width: "12px",
+                height: "12px",
+                borderRadius: "50%",
+                background: "#3B82F6",
+                marginRight: "8px",
+                border: "2px solid #ffffff",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              }}
+            ></div>
+            <span>Current Position</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <div
+              style={{
+                width: "12px",
+                height: "2px",
+                background: "#8B5CF6",
+                marginRight: "8px",
+                borderRadius: "1px",
+              }}
+            ></div>
+            <span>Route Path</span>
+          </div>
+        </div>
       </div>
       <div
         ref={mapRef}
