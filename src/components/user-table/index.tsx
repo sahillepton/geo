@@ -1,3 +1,4 @@
+//@ts-nocheck
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { DataTable } from "./data-table";

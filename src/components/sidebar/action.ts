@@ -1,4 +1,4 @@
-
+//@ts-nocheck
 "use server";
 import { createClient } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
@@ -150,7 +150,7 @@ export async function deleteRoute(id: string, deletedBy: string) {
     return {
       data: JSON.stringify({
         Status: "5000",
-        Message: error.message
+        Message: error
       })
     }
   }

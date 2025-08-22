@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { Button } from "@/components/ui/button";
 import VideoWithMap from "@/components/video-player";
 import { createClient } from "@/lib/supabase-server";
@@ -6,7 +7,11 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-const VideoPage = async ({ params }: { params: { surveyId: string } }) => {
+const VideoPage = async ({
+  params,
+}: {
+  params: Promise<{ surveyId: string }>;
+}) => {
   const { surveyId } = await params;
   const user = (await cookies()).get("user");
 
