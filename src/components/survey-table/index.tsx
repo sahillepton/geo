@@ -69,6 +69,7 @@ import {
 import { Label } from "../ui/label";
 import { User } from "@/lib/types";
 import { toast } from "sonner";
+import { useSurveyStore } from "@/lib/store";
 
 // Define some color pairs
 const avatarColors = [
@@ -102,6 +103,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
   const [newRouteName, setNewRouteName] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadingGpsTrackId, setDownloadingGpsTrackId] = useState("");
+  const { setSurveys, setLoading } = useSurveyStore();
 
   // Load all filters from localStorage on component mount
   useEffect(() => {
@@ -301,8 +303,16 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
     queryKey: ["videos", page, filters],
     queryFn: async () => {
       console.time("getVideoList");
+      setLoading(true);
       const data = await getVideoList(filters, page, 10);
       console.timeEnd("getVideoList");
+      setSurveys(
+        JSON.parse(data.data).Result.map((survey: any) => ({
+          id: survey.surveyId,
+          name: survey.routeName,
+        }))
+      );
+      setLoading(false);
       return JSON.parse(data.data).Result;
     },
     placeholderData: keepPreviousData,

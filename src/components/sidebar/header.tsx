@@ -34,15 +34,12 @@ const Header = ({ user }: { user: User }) => {
   const surveyId = breadcrumbItems.length > 1 ? breadcrumbItems[1] : null;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-
-  console.log(user, "user role");
-
   const { data: surveyData, isLoading: isSurveyLoading } = useQuery({
     queryKey: ["survey", surveyId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("surveys")
-        .select("*, videos(verified_by))")
+        .select("video_id, videos(verified_by))")
         .eq("id", surveyId)
         .single();
       return data;

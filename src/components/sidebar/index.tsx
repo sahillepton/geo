@@ -26,10 +26,21 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { NavUser } from "./nav-user";
 import { User } from "@/lib/types";
 import { usePathname } from "next/navigation";
+import { useSurveyStore } from "@/lib/store";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "../ui/collapsible";
+import Link from "next/link";
+import { Skeleton } from "../ui/skeleton";
 
 const data = {
   user: {
@@ -163,6 +174,9 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const breadcrumbItems = pathname.split("/").filter((item) => item !== "");
+  const surveyId = breadcrumbItems.length > 1 ? breadcrumbItems[1] : null;
+  const { surveys, loading } = useSurveyStore();
+  console.log(surveys, "surveys zustand");
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>
@@ -183,27 +197,46 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel> Recordings</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                tooltip="Geotagged Videos"
-                className={`${
-                  breadcrumbItems[0] === "geotaggedvideos"
-                    ? "bg-black hover:bg-black text-white hover:text-white"
-                    : ""
-                }`}
-              >
-                <a href={`/geotaggedvideos`}>
-                  <VideoIcon className="size-4" />
-                  <span>Geotagged Videos</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+        <Collapsible asChild defaultOpen={true}>
+          <SidebarGroup>
+            <SidebarGroupLabel> Recordings</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip="Geotagged Videos"
+                    isActive={
+                      breadcrumbItems[0] === "geotaggedvideos" ||
+                      breadcrumbItems[0] === "video"
+                    }
+                  >
+                    <a href={`/geotaggedvideos`}>
+                      <VideoIcon className="size-4" />
+                      <span>Geotagged Videos</span>
+                    </a>
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenuSub>
+                    {surveys.map((survey) => (
+                      <SidebarMenuSubItem key={survey.id}>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={surveyId === survey.id}
+                        >
+                          <Link href={`/video/${survey.id}`}>
+                            <span>{survey.name}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        </Collapsible>
         <SidebarGroup>
           <SidebarGroupLabel> Configuration Manager</SidebarGroupLabel>
           <SidebarMenu>
@@ -211,16 +244,12 @@ export function AppSidebar({
               <SidebarMenuButton
                 asChild
                 tooltip="User Management"
-                className={`${
-                  breadcrumbItems[0] === "user-management"
-                    ? "bg-black hover:bg-black text-white hover:text-white"
-                    : ""
-                }`}
+                isActive={breadcrumbItems[0] === "user-management"}
               >
-                <a href="/user-management">
+                <Link href="/user-management">
                   <UserIcon className="size-4" />
                   <span>User Management</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

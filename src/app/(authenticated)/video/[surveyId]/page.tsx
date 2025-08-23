@@ -64,6 +64,7 @@ const VideoPage = async ({
   }
 
   if (videoData.mux_playback_id && videoData.status !== "ready") {
+    console.log("getting mux status");
     const id = videoData.mux_playback_id.substring(
       videoData.mux_playback_id.lastIndexOf("/") + 1,
       videoData.mux_playback_id.lastIndexOf(".")
