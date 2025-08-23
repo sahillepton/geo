@@ -225,7 +225,7 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
 
     if (filters.dateKey && filters.dateFrom && filters.dateTo) {
 
-      console.log(filters.dateKey, filters.dateFrom, filters.dateTo, 'date filters')
+   //   console.log(filters.dateKey, filters.dateFrom, filters.dateTo, 'date filters')
 
       const column = filters.dateKey === 'Mobile_Video_Capture_Time' ? 'timestamp' :
                     filters.dateKey === 'Created_On' ? 'created_at' : null;
@@ -453,7 +453,7 @@ export async function getStateBlocksAndDistricts() {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_state_blocks_and_districts")
 
-  console.log(data, 'districts')
+ // console.log(data, 'districts')
 
   if (error) {
     console.error('Error fetching data:', error);

@@ -37,7 +37,7 @@ export const addUser = async (prevState: any, formData: FormData) => {
     }
 
     const findUser = await supabase.from("users").select("user_id").eq("email", validatedFields.data.email).single()
-    console.log(findUser, "findUser")
+   // console.log(findUser, "findUser")
     if (findUser.data) {
         return {
             errors: {
@@ -73,6 +73,12 @@ export const addUser = async (prevState: any, formData: FormData) => {
 export const editUser = async (prevState: any, formData: FormData) => {
     const supabase = await createClient()
 
+
+    if (formData.keys().find(key => key === "role") && formData.get("role") === "manager_id") {
+        formData.set("manager_id", "")
+        formData.set("role", "")
+    } 
+
     const editUserSchema = z.object({
         username: z.string().optional(),
         email: z.string().optional(),
@@ -93,14 +99,14 @@ export const editUser = async (prevState: any, formData: FormData) => {
     })
     
     if (!validatedFields.success) {
-        console.log(validatedFields.error.flatten().fieldErrors, "errors updating user");
+     //   console.log(validatedFields.error.flatten().fieldErrors, "errors updating user");
         return {
             errors: validatedFields.error.flatten().fieldErrors,
             success: false,
         }
     }
 
-    console.log(validatedFields.data.userId, "updating user");
+    //console.log(validatedFields.data.userId, "updating user");
 
     const updateData: Record<string, any> = {};
 
@@ -109,6 +115,7 @@ if (validatedFields.data.email) updateData.email = validatedFields.data.email;
 if (validatedFields.data.password) updateData.password = validatedFields.data.password;
 if (validatedFields.data.role) updateData.role = validatedFields.data.role;
 if (validatedFields.data.location) updateData.location = validatedFields.data.location;
+if (validatedFields.data.manager_id) updateData.manager_id = validatedFields.data.manager_id;
 
     const { data, error } = await supabase.from("users").update(updateData).eq("user_id", validatedFields.data.userId)
 
@@ -124,7 +131,7 @@ if (validatedFields.data.location) updateData.location = validatedFields.data.lo
 
 
 export const deleteUser = async(userId : string) => {
-    console.log(userId, "userId to be deleted");
+  //  console.log(userId, "userId to be deleted");
     const supabase = await createClient()
 
     const { data: managedUsers, error: checkError } = await supabase

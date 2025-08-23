@@ -83,14 +83,11 @@ const Header = ({ user }: { user: User }) => {
             <BreadcrumbItem>
               <BreadcrumbPage>{breadcrumbItems[0]}</BreadcrumbPage>
             </BreadcrumbItem>
-            {surveyId && (
-              <>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Survey {surveyId}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </>
-            )}
+
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Survey {surveyId}</BreadcrumbPage>
+            </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
@@ -129,7 +126,7 @@ const Header = ({ user }: { user: User }) => {
               </div>
             </DialogContent>
           </Dialog>
-          {user.role === "admin" && (
+          {(user.role === "admin" || user.role === "manager") && (
             <Dialog>
               <DialogTrigger asChild disabled={isVideoVerified}>
                 <Button

@@ -1,19 +1,22 @@
-//@ts-nocheck
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import VideoWithMap from "@/components/video-player";
-import MP4VideoWithMap from "@/components/video-player/mp4-player";
 import { createClient } from "@/lib/supabase-server";
-import { ArrowLeftIcon, PlusIcon } from "lucide-react";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import axios from "axios";
+import { Suspense } from "react";
+import MP4VideoWithMap from "@/components/video-player/mp4-player";
+import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import Feedback from "../feedback";
 
-export const experimental_ppr = true;
-
-const VideoPage = async ({
+const PreviewPage = async ({
   params,
 }: {
   params: Promise<{ surveyId: string }>;
@@ -21,10 +24,9 @@ const VideoPage = async ({
   const { surveyId } = await params;
   const user = (await cookies()).get("user");
 
-  if (!user) {
-    redirect(`/preview/${surveyId}`);
+  if (user) {
+    redirect(`/video/${surveyId}`);
   }
-
   const supabase = await createClient();
   const [videoResult, surveyResult] = await Promise.all([
     supabase.from("videos").select("*").eq("survey_id", surveyId).single(),
@@ -43,25 +45,6 @@ const VideoPage = async ({
 
   const { data: videoData, error: videoError } = videoResult;
   const { data: surveyData, error: surveyError } = surveyResult;
-
-  if (!videoData?.url && !videoData?.mux_playback_id) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen gap-4">
-        <Badge
-          variant="destructive"
-          className="text-2xl font-bold bg-red-500 text-white animate-pulse border-red-700 shadow-lg"
-        >
-          No video found for this survey
-        </Badge>
-        <Link
-          href="/geotaggedvideos"
-          className="text-red-500 hover:text-red-700 underline text-sm"
-        >
-          Go back to surveys?
-        </Link>
-      </div>
-    );
-  }
 
   if (videoData.mux_playback_id && videoData.status !== "ready") {
     const id = videoData.mux_playback_id.substring(
@@ -116,39 +99,27 @@ const VideoPage = async ({
         </div>
       }
     >
-      <div className="px-4 ">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="outline">
-              <Link
-                href="/geotaggedvideos"
-                className="flex items-center gap-2 w-fit h-fit"
-              >
-                <ArrowLeftIcon size={16} />
-                Back
-              </Link>
-            </Button>
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-balance text-[#262626]">
-            {videoData.name}
-          </h1>
-        </div>
-
-        <div className=" mt-4">
-          {videoData.mux_playback_id ? (
-            <VideoWithMap
-              videoUrl={videoData.mux_playback_id}
-              locationData={surveyData?.gps_tracks?.location_data}
-            />
-          ) : (
-            <MP4VideoWithMap
-              videoUrl={videoData?.url}
-              locationData={surveyData?.gps_tracks?.location_data}
-            />
-          )}
-        </div>
+      <div className="w-[1200px] flex justify-between items-center ml-4 mr-4 mt-4">
+        <p className="text-2xl font-bold">{videoData.name}</p>
+        <Feedback videoId={videoData.id} />
       </div>
+      {videoData.mux_playback_id ? (
+        <div className="p-4">
+          <VideoWithMap
+            videoUrl={videoData?.url}
+            locationData={surveyData?.gps_tracks?.location_data}
+          />
+        </div>
+      ) : (
+        <div>
+          <MP4VideoWithMap
+            videoUrl={videoData?.url}
+            locationData={surveyData?.gps_tracks?.location_data}
+          />
+        </div>
+      )}
     </Suspense>
   );
 };
-export default VideoPage;
+
+export default PreviewPage;

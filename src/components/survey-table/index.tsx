@@ -427,7 +427,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
     const hasNonDateFilters =
       selectedState || selectedDistrict || selectedBlock || search;
     if (hasCompleteDateFilter || hasNonDateFilters) {
-      console.log("calling date filter");
+      //  console.log("calling date filter");
       setPage(1);
       queryClient.prefetchQuery({
         queryKey: ["videos", 1, filters],
@@ -487,8 +487,8 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
 
-    console.log(minutes, "minutes");
-    console.log(seconds, "seconds");
+    // console.log(minutes, "minutes");
+    //console.log(seconds, "seconds");
 
     return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(
       2,

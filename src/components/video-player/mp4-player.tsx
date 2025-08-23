@@ -113,7 +113,7 @@ const MP4VideoPlayer = ({ url, video, setVideo }) => {
     const handleLoadedMetadata = () => {
       setIsLoading(false);
       setError(null);
-      console.log("MP4 metadata loaded. Duration:", videoEl.duration);
+      //  console.log("MP4 metadata loaded. Duration:", videoEl.duration);
       // Auto-play the video when metadata is loaded
       if (videoEl.paused) {
         videoEl
@@ -639,13 +639,13 @@ const SimpleMap = ({
     )
       return;
 
-    console.log("Initializing map with data:", data.length, "points");
+    // console.log("Initializing map with data:", data.length, "points");
 
     const firstPoint = data[0];
     const lastPoint = data[data.length - 1];
 
-    console.log("First point:", firstPoint);
-    console.log("Last point:", lastPoint);
+    // console.log("First point:", firstPoint);
+    // console.log("Last point:", lastPoint);
 
     // Add a small delay to ensure the container is properly rendered
     const timer = setTimeout(() => {
@@ -662,7 +662,7 @@ const SimpleMap = ({
         zoomControl: false, // We'll add it manually to control position
       });
 
-      console.log("Map created:", leafletMap);
+      //  console.log("Map created:", leafletMap);
 
       // Add tile layers
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -789,7 +789,7 @@ const SimpleMap = ({
 
     const handlePolylineClick = (e) => {
       const clickedLatLng = e.latlng;
-      console.log("Polyline clicked at:", clickedLatLng);
+      //  console.log("Polyline clicked at:", clickedLatLng);
 
       // Find the closest GPS point to the clicked location
       let closestPoint = data[0];
@@ -808,16 +808,16 @@ const SimpleMap = ({
         }
       });
 
-      console.log("Closest point:", closestPoint);
-      console.log("Video element:", video);
+      //  console.log("Closest point:", closestPoint);
+      //  console.log("Video element:", video);
 
       // Jump to the timestamp of the closest point
       if (video && closestPoint) {
         const timestamp = parseFloat(closestPoint.timeStamp);
-        console.log("Setting video time to:", timestamp);
+        //    console.log("Setting video time to:", timestamp);
         video.currentTime = timestamp;
       } else {
-        console.log("Video or closestPoint not available");
+        //    console.log("Video or closestPoint not available");
       }
     };
 
@@ -975,7 +975,7 @@ const SimpleMap = ({
 // --- Main MP4 Component ---
 export default function MP4VideoWithMap({ videoUrl, locationData }) {
   const [video, setVideo] = useState(null);
-  console.log("MP4 locationData", locationData);
+  // console.log("MP4 locationData", locationData);
 
   const sortedData = useMemo(() => {
     if (!locationData) return [];

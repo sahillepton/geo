@@ -21,7 +21,7 @@ const DeleteUserModal = ({
   deletingUser: any;
   setDeletingUser: (user: any) => void;
 }) => {
-  console.log(deletingUser, "deletingUser");
+  // console.log(deletingUser, "deletingUser");
   const queryClient = useQueryClient();
   return (
     <Dialog

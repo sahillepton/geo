@@ -36,6 +36,37 @@ const VideoSphere = ({ video }) => {
   );
 };
 
+const ProgressBar = ({ value, onChange, className = "", isVolume }) => {
+  const progressRef = useRef(null);
+
+  const handleClick = (e) => {
+    if (!progressRef.current) return;
+    const rect = progressRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = (clickX / rect.width) * 100;
+    onChange(isVolume ? percentage / 100 : percentage);
+  };
+
+  return (
+    <div
+      ref={progressRef}
+      className={`relative ${
+        isVolume ? "w-20" : "w-full"
+      } h-2 bg-gray-700 rounded-full cursor-pointer ${className}`}
+      onClick={handleClick}
+    >
+      <div
+        className="absolute top-0 left-0 h-full bg-purple-500 rounded-full transition-all duration-150"
+        style={{ width: `${isVolume ? value * 100 : value}%` }}
+      />
+      <div
+        className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md transition-all duration-150 hover:scale-125"
+        style={{ left: `calc(${isVolume ? value * 100 : value}% - 6px)` }}
+      />
+    </div>
+  );
+};
+
 // --- Custom Progress Bar Component ---
 const VideoProgressBar = ({ value, onChange, className = "" }) => {
   const progressRef = useRef(null);
@@ -100,7 +131,6 @@ const VolumeProgressBar = ({ value, onChange, className = "" }) => {
 
 // --- Video Player ---
 const VideoPlayer = ({ url, video, setVideo }) => {
-  const containerRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(0.5);
@@ -125,7 +155,6 @@ const VideoPlayer = ({ url, video, setVideo }) => {
       const hls = new Hls({ autoStartLoad: true });
       hls.loadSource(url);
       hls.attachMedia(videoEl);
-
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         const levels = hls.levels.map((level, idx) => ({
           label: level.height + "p",
@@ -133,7 +162,6 @@ const VideoPlayer = ({ url, video, setVideo }) => {
         }));
         setQualities([{ label: "Auto", index: -1 }, ...levels]);
       });
-
       videoEl.hls = hls;
     } else {
       videoEl.src = url;
@@ -141,33 +169,14 @@ const VideoPlayer = ({ url, video, setVideo }) => {
 
     setVideo(videoEl);
     togglePlay();
-    return () => {
-      videoEl.pause();
-      videoEl.remove();
-    };
+    return () => videoEl.remove();
   }, [url, video, setVideo]);
 
-  // Play / Pause
   const togglePlay = () => {
     if (!video) return;
-    if (isPlaying) {
-      video.pause();
-      setIsPlaying(false);
-    } else {
-      video
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => console.warn("Play failed:", err));
-    }
-  };
-
-  // Volume
-  const handleVolumeChange = (newVolume) => {
-    setVolume(newVolume);
-    if (video) {
-      video.volume = newVolume;
-      setIsMuted(newVolume === 0);
-    }
+    if (isPlaying) video.pause();
+    else video.play().catch(console.warn);
+    setIsPlaying(!isPlaying);
   };
 
   const toggleMute = () => {
@@ -176,16 +185,19 @@ const VideoPlayer = ({ url, video, setVideo }) => {
     setIsMuted(video.muted);
   };
 
-  // Seek
   const handleSeek = (percent) => {
     setProgress(percent);
     if (video?.duration) video.currentTime = (percent / 100) * video.duration;
   };
 
-  // Sync time
+  const handleVolumeChange = (v) => {
+    setVolume(v);
+    if (video) video.volume = v;
+    setIsMuted(v === 0);
+  };
+
   useEffect(() => {
     if (!video) return;
-
     const updateTime = () => {
       setCurrentTime(video.currentTime);
       setDuration(video.duration || 0);
@@ -193,7 +205,6 @@ const VideoPlayer = ({ url, video, setVideo }) => {
         video.duration ? (video.currentTime / video.duration) * 100 : 0
       );
     };
-
     video.addEventListener("timeupdate", updateTime);
     video.addEventListener("loadedmetadata", updateTime);
     video.addEventListener("waiting", () => setIsBuffering(true));
@@ -201,21 +212,8 @@ const VideoPlayer = ({ url, video, setVideo }) => {
     video.addEventListener("canplaythrough", () => setIsBuffering(false));
     return () => {
       video.removeEventListener("timeupdate", updateTime);
-      video.removeEventListener("loadedmetadata", updateTime);
-      video.removeEventListener("waiting", () => setIsBuffering(true));
-      video.removeEventListener("canplay", () => setIsBuffering(false));
-      video.removeEventListener("canplaythrough", () => setIsBuffering(false));
     };
   }, [video]);
-
-  // Quality
-  const handleQualityChange = (index) => {
-    if (!video?.hls) return;
-    video.hls.currentLevel = index; // -1 = auto
-    setSelectedQuality(
-      index === -1 ? "Auto" : qualities.find((q) => q.index === index)?.label
-    );
-  };
 
   const formatTime = (t) => {
     if (!t) return "0:00";
@@ -224,25 +222,17 @@ const VideoPlayer = ({ url, video, setVideo }) => {
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
   };
 
-  const getVolumeIcon = () => {
-    if (isMuted || volume === 0) return VolumeX;
-    if (volume < 0.5) return Volume1;
-    return Volume2;
-  };
-
-  const VolumeIcon = getVolumeIcon();
+  const VolumeIcon =
+    isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
   return (
     <div
-      ref={containerRef}
       style={{
         width: "100%",
         height: "100%",
         position: "relative",
-        background: "#000",
-        cursor: "pointer",
+        background: "#111",
       }}
-      onClick={togglePlay}
     >
       <Canvas camera={{ position: [0, 0, 0.1], fov: 75 }}>
         <OrbitControls enableZoom={false} enablePan={false} />
@@ -251,105 +241,44 @@ const VideoPlayer = ({ url, video, setVideo }) => {
         </Suspense>
       </Canvas>
 
-      {/* Buffering Loader */}
       {isBuffering && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            zIndex: 1000,
-            background: "rgba(0,0,0,0.8)",
-            color: "#fff",
-            padding: "20px",
-            borderRadius: "10px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
+        <div className="absolute inset-0 flex flex-col justify-center items-center bg-black/70 text-white z-50 gap-3">
           <Loader2 className="w-10 h-10 animate-spin" />
-          <div>Buffering...</div>
+          <span>Buffering...</span>
         </div>
       )}
 
-      {/* Controls (YouTube-like) */}
+      {/* Controls */}
       <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          width: "100%",
-          background: "rgba(0,0,0,0.7)",
-          padding: "8px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          zIndex: 999,
-        }}
-        onClick={(e) => e.stopPropagation()} // prevent togglePlay when clicking controls
+        className="absolute bottom-3 left-0 w-full p-3 bg-black/60 backdrop-blur-sm flex flex-col gap-2 z-50"
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Progress Bar */}
-        <VideoProgressBar value={progress} onChange={handleSeek} />
+        <ProgressBar value={progress} onChange={handleSeek} />
 
-        {/* Bottom Controls */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            color: "#fff",
-            fontSize: 14,
-          }}
-        >
-          {/* Left controls */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="flex justify-between items-center text-white text-sm mt-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={togglePlay}
-              style={{
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "32px",
-                height: "32px",
-              }}
+              className="p-2 rounded-full hover:bg-white/20 transition"
             >
               {isPlaying ? <Pause size={16} /> : <Play size={16} />}
             </button>
-
             <button
               onClick={toggleMute}
-              style={{
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "32px",
-                height: "32px",
-              }}
+              className="p-2 rounded-full hover:bg-white/20 transition"
             >
               <VolumeIcon size={16} />
             </button>
-
-            {/* Volume */}
-            <VolumeProgressBar value={volume} onChange={handleVolumeChange} />
-
-            {/* Time */}
+            <ProgressBar
+              value={volume}
+              onChange={handleVolumeChange}
+              isVolume
+            />
             <span>
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
           </div>
 
-          {/* Right controls */}
           {qualities.length > 0 && (
             <select
               value={selectedQuality}
@@ -357,16 +286,10 @@ const VideoPlayer = ({ url, video, setVideo }) => {
                 const idx = qualities.findIndex(
                   (q) => q.label === e.target.value
                 );
-                handleQualityChange(qualities[idx].index);
+                if (video?.hls) video.hls.currentLevel = qualities[idx].index;
+                setSelectedQuality(e.target.value);
               }}
-              style={{
-                padding: "2px 6px",
-                borderRadius: 4,
-                border: "1px solid #555",
-                background: "#111",
-                color: "#fff",
-                fontSize: 12,
-              }}
+              className="bg-gray-900 text-white text-xs px-2 py-1 rounded border border-gray-600"
             >
               {qualities.map((q) => (
                 <option key={q.label} value={q.label}>
@@ -467,13 +390,13 @@ const SimpleMap = ({
     )
       return;
 
-    console.log("Initializing map with data:", data.length, "points");
+    //   console.log("Initializing map with data:", data.length, "points");
 
     const firstPoint = data[0];
     const lastPoint = data[data.length - 1];
 
-    console.log("First point:", firstPoint);
-    console.log("Last point:", lastPoint);
+    // console.log("First point:", firstPoint);
+    //console.log("Last point:", lastPoint);
 
     // Add a small delay to ensure the container is properly rendered
     const timer = setTimeout(() => {
@@ -490,7 +413,7 @@ const SimpleMap = ({
         zoomControl: false, // We'll add it manually to control position
       });
 
-      console.log("Map created:", leafletMap);
+      //  console.log("Map created:", leafletMap);
 
       // Add tile layers
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -721,7 +644,7 @@ const SimpleMap = ({
 
     const handlePolylineClick = (e) => {
       const clickedLatLng = e.latlng;
-      console.log("Polyline clicked at:", clickedLatLng);
+      //  console.log("Polyline clicked at:", clickedLatLng);
 
       // Find the closest GPS point to the clicked location
       let closestPoint = data[0];
@@ -740,16 +663,16 @@ const SimpleMap = ({
         }
       });
 
-      console.log("Closest point:", closestPoint);
-      console.log("Video element:", video);
+      //  console.log("Closest point:", closestPoint);
+      //  console.log("Video element:", video);
 
       // Jump to the timestamp of the closest point
       if (video && closestPoint) {
         const timestamp = parseFloat(closestPoint.timeStamp);
-        console.log("Setting video time to:", timestamp);
+        //      console.log("Setting video time to:", timestamp);
         video.currentTime = timestamp;
       } else {
-        console.log("Video or closestPoint not available");
+        //    console.log("Video or closestPoint not available");
       }
     };
 
@@ -1082,13 +1005,11 @@ const SimpleMap = ({
 
 // --- Main Component ---
 export default function VideoWithMap({ videoUrl, locationData }) {
-  console.log("videoUrl", videoUrl);
   const [video, setVideo] = useState(null);
-  console.log("locationData", locationData);
-  const sortedData = useMemo(() => {
-    if (!locationData) return [];
-    return [...locationData].sort((a, b) => a.timestamp - b.timestamp);
-  }, [locationData]);
+  const sortedData = useMemo(
+    () => locationData?.sort((a, b) => a.timestamp - b.timestamp) || [],
+    [locationData]
+  );
 
   return (
     <PanelGroup
@@ -1096,13 +1017,13 @@ export default function VideoWithMap({ videoUrl, locationData }) {
       style={{ width: "100%", height: "80vh" }}
     >
       <Panel defaultSize={50} minSize={30}>
-        <div style={{ width: "100%", height: "100%" }}>
+        <div className="w-full h-full rounded-xl overflow-hidden shadow-lg border border-gray-300">
           <VideoPlayer url={videoUrl} video={video} setVideo={setVideo} />
         </div>
       </Panel>
-      <PanelResizeHandle />
+      <PanelResizeHandle className="w-2 cursor-col-resize bg-gray-200 hover:bg-gray-400 transition" />
       <Panel defaultSize={50} minSize={30}>
-        <div style={{ width: "100%", height: "100%" }}>
+        <div className="w-full h-full rounded-xl overflow-hidden shadow-lg border border-gray-300">
           <SimpleMap data={sortedData} video={video} />
         </div>
       </Panel>
