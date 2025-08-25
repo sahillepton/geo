@@ -1,3 +1,5 @@
+//@ts-nocheck
+
 import VideoWithMap from "@/components/video-player";
 import { createClient } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
@@ -9,10 +11,14 @@ import Feedback from "../feedback";
 
 const PreviewPage = async ({
   params,
+  searchParams,
 }: {
   params: Promise<{ surveyId: string }>;
+  searchParams: Promise<{ x?: string; y?: string }>;
 }) => {
   const { surveyId } = await params;
+  const { x, y } = await searchParams;
+
   const user = (await cookies()).get("user");
 
   if (user) {
@@ -67,6 +73,8 @@ const PreviewPage = async ({
           <VideoWithMap
             videoUrl={videoData?.mux_playback_id}
             locationData={surveyData?.gps_tracks?.location_data}
+            initialX={x}
+            initialY={y}
           />
         </div>
       ) : (

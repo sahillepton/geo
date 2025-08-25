@@ -22,7 +22,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
-import { Check, Copy, Link, Loader2 } from "lucide-react";
+import { Check, Copy, Link, Loader2, ShieldCheck } from "lucide-react";
 import { User } from "@/lib/types";
 import { verifyVideo } from "./action";
 import { toast } from "sonner";
@@ -137,7 +137,7 @@ const Header = ({ user }: { user: User }) => {
                   {isVideoVerified ? (
                     <Check className="h-4 w-4 mr-1" />
                   ) : (
-                    <Link className="h-4 w-4 mr-1" />
+                    <ShieldCheck className="h-4 w-4 mr-1" />
                   )}
                   {isVideoVerified ? "Verified" : "Verify Video"}
                 </Button>

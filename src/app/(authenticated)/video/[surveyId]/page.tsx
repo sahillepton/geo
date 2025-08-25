@@ -15,14 +15,18 @@ export const experimental_ppr = true;
 
 const VideoPage = async ({
   params,
+  searchParams,
 }: {
   params: Promise<{ surveyId: string }>;
+  searchParams: Promise<{ x?: string; y?: string }>;
 }) => {
   const { surveyId } = await params;
+  const { x, y } = await searchParams;
+
   const user = (await cookies()).get("user");
 
   if (!user) {
-    redirect(`/preview/${surveyId}`);
+    redirect(`/preview/${surveyId}?x=${x}&y=${y}`);
   }
 
   const supabase = await createClient();
@@ -97,12 +101,29 @@ const VideoPage = async ({
   }
 
   return (
-    <Suspense
-      fallback={
-        <div className="flex flex-col justify-center items-center h-screen">
-          <Badge
-            variant={"secondary"}
-            className="
+    <div className="px-4 ">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline">
+            <Link
+              href="/geotaggedvideos"
+              className="flex items-center gap-2 w-fit h-fit"
+            >
+              <ArrowLeftIcon size={16} />
+              Back
+            </Link>
+          </Button>
+        </div>
+        <h1 className="text-2xl font-extrabold tracking-tight text-balance text-[#262626]">
+          {videoData.name}
+        </h1>
+      </div>
+      <Suspense
+        fallback={
+          <div className="flex flex-col justify-center items-center h-screen">
+            <Badge
+              variant={"secondary"}
+              className="
     text-2xl 
     font-bold 
     bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-200 
@@ -111,35 +132,19 @@ const VideoPage = async ({
     text-yellow-800
     shadow-lg
     "
-          >
-            Fetching video and GPS tracks
-          </Badge>
-        </div>
-      }
-    >
-      <div className="px-4 ">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="outline">
-              <Link
-                href="/geotaggedvideos"
-                className="flex items-center gap-2 w-fit h-fit"
-              >
-                <ArrowLeftIcon size={16} />
-                Back
-              </Link>
-            </Button>
+            >
+              Fetching video and GPS tracks
+            </Badge>
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-balance text-[#262626]">
-            {videoData.name}
-          </h1>
-        </div>
-
+        }
+      >
         <div className=" mt-4">
           {videoData.mux_playback_id ? (
             <VideoWithMap
               videoUrl={videoData.mux_playback_id}
               locationData={surveyData?.gps_tracks?.location_data}
+              initialX={x}
+              initialY={y}
             />
           ) : (
             <MP4VideoWithMap
@@ -148,8 +153,8 @@ const VideoPage = async ({
             />
           )}
         </div>
-      </div>
-    </Suspense>
+      </Suspense>
+    </div>
   );
 };
 export default VideoPage;

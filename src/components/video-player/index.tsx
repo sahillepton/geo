@@ -9,6 +9,7 @@ import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Progress } from "@/components/ui/progress";
+
 import {
   Play,
   Pause,
@@ -17,6 +18,29 @@ import {
   Volume1,
   Settings,
   Loader2,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
+import {
+  ChevronUp,
+  ChevronDown,
+  MapPin,
+  Clock,
+  Ruler,
+  Crosshair,
 } from "lucide-react";
 
 // --- VideoSphere ---
@@ -130,7 +154,7 @@ const VolumeProgressBar = ({ value, onChange, className = "" }) => {
 };
 
 // --- Video Player ---
-const VideoPlayer = ({ url, video, setVideo }) => {
+const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(0.5);
@@ -147,7 +171,7 @@ const VideoPlayer = ({ url, video, setVideo }) => {
 
     const videoEl = document.createElement("video");
     videoEl.crossOrigin = "anonymous";
-    videoEl.playsInline = true;
+    //videoEl.playsInline = true;
     videoEl.volume = volume;
     videoEl.muted = isMuted;
 
@@ -168,7 +192,20 @@ const VideoPlayer = ({ url, video, setVideo }) => {
     }
 
     setVideo(videoEl);
-    togglePlay();
+
+    // Start playing when video is ready
+    videoEl.addEventListener("loadedmetadata", () => {
+      // Set initial timestamp if provided
+      if (initialTimestamp > 0) {
+        videoEl.currentTime = initialTimestamp;
+      }
+    });
+
+    videoEl.addEventListener("canplay", () => {
+      if (!videoEl.paused) return; // Don't restart if already playing
+      videoEl.play().catch(console.warn);
+    });
+
     return () => videoEl.remove();
   }, [url, video, setVideo]);
 
@@ -178,6 +215,21 @@ const VideoPlayer = ({ url, video, setVideo }) => {
     else video.play().catch(console.warn);
     setIsPlaying(!isPlaying);
   };
+
+  // Add keyboard event listener for spacebar
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.code === "Space" && video) {
+        e.preventDefault(); // Prevent page scroll
+        togglePlay();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyPress);
+    return () => {
+      document.removeEventListener("keydown", handleKeyPress);
+    };
+  }, [video, isPlaying]);
 
   const toggleMute = () => {
     if (!video) return;
@@ -415,28 +467,58 @@ const SimpleMap = ({
 
       //  console.log("Map created:", leafletMap);
 
-      // Add tile layers
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-      }).addTo(leafletMap);
-
-      // Add satellite layer
-      const satelliteLayer = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      // Add OpenStreetMap as default
+      const openStreetMap = L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         {
-          attribution: "© Esri",
+          attribution: "© OpenStreetMap contributors",
+          maxZoom: 19,
         }
       );
 
+      // Add Google Maps tile layers as alternatives
+      const googleStreets = L.tileLayer(
+        "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+        {
+          attribution: "© Google Maps",
+          maxZoom: 20,
+        }
+      );
+
+      const googleSatellite = L.tileLayer(
+        "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+        {
+          attribution: "© Google Maps",
+          maxZoom: 20,
+        }
+      );
+
+      const googleHybrid = L.tileLayer(
+        "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+        {
+          attribution: "© Google Maps",
+          maxZoom: 20,
+        }
+      );
+
+      const googleTerrain = L.tileLayer(
+        "https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}",
+        {
+          attribution: "© Google Maps",
+          maxZoom: 20,
+        }
+      );
+
+      // Add default OpenStreetMap layer
+      openStreetMap.addTo(leafletMap);
+
       // Layer control
       const baseMaps = {
-        Street: L.tileLayer(
-          "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-          {
-            attribution: "© OpenStreetMap contributors",
-          }
-        ),
-        Satellite: satelliteLayer,
+        OpenStreetMap: openStreetMap,
+        "Google Streets": googleStreets,
+        "Google Satellite": googleSatellite,
+        "Google Hybrid": googleHybrid,
+        "Google Terrain": googleTerrain,
       };
 
       L.control.layers(baseMaps).addTo(leafletMap);
@@ -561,29 +643,13 @@ const SimpleMap = ({
       movingMarkerRef.current = L.circle(
         [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
         {
-          radius: 12,
+          radius: 2,
           color: "#3B82F6",
           fillColor: "#3B82F6",
           fillOpacity: 0.9,
-          weight: 3,
-        }
-      ).addTo(leafletMap);
-
-      // Add a pulsing circle around the moving marker
-      const pulseCircle = L.circle(
-        [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
-        {
-          radius: 20,
-          color: "#3B82F6",
-          fillColor: "#3B82F6",
-          fillOpacity: 0.2,
           weight: 2,
-          dashArray: "5, 5",
         }
       ).addTo(leafletMap);
-
-      // Store pulse circle reference for animation
-      movingMarkerRef.current.pulseCircle = pulseCircle;
 
       // Add zoom control at bottom right
       L.control
@@ -592,17 +658,89 @@ const SimpleMap = ({
         })
         .addTo(leafletMap);
 
-      // Polyline with aesthetic styling
+      // Create covered and remaining route polylines
       const smoothedPath = getSmoothedPath(data);
-      polylineRef.current = L.polyline(smoothedPath, {
-        color: "#8B5CF6", // Purple color
-        weight: 4,
+
+      // Initially, all route is remaining (covered route is empty)
+      const coveredPath = [];
+      const remainingPath = smoothedPath;
+
+      // Create covered route polyline (initially empty)
+      const coveredPolyline = L.polyline(coveredPath, {
+        color: "#10B981", // Green color for covered route
+        weight: 6,
+        opacity: 0.9,
+        lineCap: "round",
+        lineJoin: "round",
+        interactive: false,
+      }).addTo(leafletMap);
+
+      // Create remaining route polyline (initially full route)
+      polylineRef.current = L.polyline(remainingPath, {
+        color: "#8B5CF6", // Purple color for remaining route
+        weight: 6,
         opacity: 0.9,
         lineCap: "round",
         lineJoin: "round",
         dashArray: "10, 5", // Dashed line effect
         dashOffset: "0",
+        interactive: true, // Make sure it's interactive
+        className: "clickable-polyline", // Add a class for styling
       }).addTo(leafletMap);
+
+      // Store references for updating
+      movingMarkerRef.current.coveredPolyline = coveredPolyline;
+      movingMarkerRef.current.remainingPolyline = polylineRef.current;
+      movingMarkerRef.current.fullPath = smoothedPath;
+
+      //  console.log("Polyline created:", polylineRef.current);
+
+      // Add click handler immediately when polyline is created
+      polylineRef.current.on("click", (e) => {
+        //  console.log("Polyline clicked immediately!");
+        const clickedLatLng = e.latlng;
+        //  console.log("Clicked LatLng:", clickedLatLng);
+
+        // Find the closest GPS point to the clicked location
+        let closestPoint = data[0];
+        let minDistance = Infinity;
+
+        data.forEach((point) => {
+          const pointLatLng = L.latLng(
+            parseFloat(point.Latitude),
+            parseFloat(point.Longitude)
+          );
+          const distance = clickedLatLng.distanceTo(pointLatLng);
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestPoint = point;
+          }
+        });
+
+        //  console.log("Closest point:", closestPoint);
+
+        // Jump to the timestamp of the closest point
+        if (video && closestPoint) {
+          let timestamp = null;
+
+          if (closestPoint.timeStamp !== undefined) {
+            timestamp = parseFloat(closestPoint.timeStamp);
+          }
+
+          if (timestamp !== null && !isNaN(timestamp)) {
+            //  console.log("Setting video time to:", timestamp);
+            video.currentTime = timestamp;
+          } else {
+            console.error(
+              "No valid timestamp found in closest point:",
+              closestPoint
+            );
+          }
+        } else {
+          //  console.log("Video or closestPoint not available");
+        }
+      });
 
       // Add a shadow effect with a thicker, semi-transparent line behind
       L.polyline(smoothedPath, {
@@ -611,23 +749,12 @@ const SimpleMap = ({
         opacity: 0.3,
         lineCap: "round",
         lineJoin: "round",
+        interactive: false,
       }).addTo(leafletMap);
 
       // Fit map to show the whole route
       const bounds = L.latLngBounds(smoothedPath);
       leafletMap.fitBounds(bounds);
-
-      accuracyCircleRef.current = L.circle(
-        [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
-        {
-          radius: 0,
-          color: "#F59E0B",
-          fillColor: "#F59E0B",
-          fillOpacity: 0.15,
-          weight: 2,
-          dashArray: "5, 5",
-        }
-      ).addTo(leafletMap);
     }, 100);
 
     return () => {
@@ -637,53 +764,6 @@ const SimpleMap = ({
       }
     };
   }, [mapRef, map, data]);
-
-  // Add click handler to polyline when video is available
-  useEffect(() => {
-    if (!polylineRef.current || !video || !data?.length) return;
-
-    const handlePolylineClick = (e) => {
-      const clickedLatLng = e.latlng;
-      //  console.log("Polyline clicked at:", clickedLatLng);
-
-      // Find the closest GPS point to the clicked location
-      let closestPoint = data[0];
-      let minDistance = Infinity;
-
-      data.forEach((point) => {
-        const pointLatLng = L.latLng(
-          parseFloat(point.Latitude),
-          parseFloat(point.Longitude)
-        );
-        const distance = clickedLatLng.distanceTo(pointLatLng);
-
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestPoint = point;
-        }
-      });
-
-      //  console.log("Closest point:", closestPoint);
-      //  console.log("Video element:", video);
-
-      // Jump to the timestamp of the closest point
-      if (video && closestPoint) {
-        const timestamp = parseFloat(closestPoint.timeStamp);
-        //      console.log("Setting video time to:", timestamp);
-        video.currentTime = timestamp;
-      } else {
-        //    console.log("Video or closestPoint not available");
-      }
-    };
-
-    polylineRef.current.on("click", handlePolylineClick);
-
-    return () => {
-      if (polylineRef.current) {
-        polylineRef.current.off("click", handlePolylineClick);
-      }
-    };
-  }, [video, data]);
 
   // Smooth marker movement with requestAnimationFrame
   useEffect(() => {
@@ -723,19 +803,11 @@ const SimpleMap = ({
 
       const pos = L.latLng(lat, lng);
       movingMarkerRef.current?.setLatLng(pos);
-      // Update pulse circle position
-      if (movingMarkerRef.current?.pulseCircle) {
-        movingMarkerRef.current.pulseCircle.setLatLng(pos);
-      }
-      // Don't auto-pan the map - let user control it
-      // map.panTo(pos);
 
       setCoords({ lat: lat.toFixed(6), lng: lng.toFixed(6) });
 
       const accuracyValue = prev.Accuracy ? parseFloat(prev.Accuracy) : 0;
       setAccuracy((accuracyValue * 100).toFixed(2));
-      accuracyCircleRef.current?.setLatLng(pos);
-      accuracyCircleRef.current?.setRadius(accuracyValue);
 
       const dist = calcDistance(
         parseFloat(data[0].Latitude),
@@ -744,6 +816,26 @@ const SimpleMap = ({
         lng
       );
       setDistance(dist.toFixed(1));
+
+      // Update covered and remaining route polylines
+      if (
+        movingMarkerRef.current?.fullPath &&
+        movingMarkerRef.current?.coveredPolyline &&
+        movingMarkerRef.current?.remainingPolyline
+      ) {
+        const fullPath = movingMarkerRef.current.fullPath;
+        const currentIndex = Math.floor(
+          (t / parseFloat(data[data.length - 1].timeStamp)) * fullPath.length
+        );
+
+        // Split the path into covered and remaining parts
+        const coveredPath = fullPath.slice(0, currentIndex + 1);
+        const remainingPath = fullPath.slice(currentIndex);
+
+        // Update the polylines
+        movingMarkerRef.current.coveredPolyline.setLatLngs(coveredPath);
+        movingMarkerRef.current.remainingPolyline.setLatLngs(remainingPath);
+      }
 
       // Continue animation if video is playing
       if (!video.paused) {
@@ -800,196 +892,35 @@ const SimpleMap = ({
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      {/* Enhanced Info Panel */}
-      <div
-        style={{
-          position: "absolute",
-          top: 15,
-          left: 15,
-          zIndex: 999,
-          padding: "12px 16px",
-          background: "rgba(255, 255, 255, 0.95)",
-          color: "#1F2937",
-          borderRadius: "12px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-          border: "1px solid rgba(0, 0, 0, 0.1)",
-          backdropFilter: "blur(10px)",
-          minWidth: "200px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "14px",
-            fontWeight: "600",
-            marginBottom: "8px",
-            color: "#374151",
-            borderBottom: "1px solid #E5E7EB",
-            paddingBottom: "4px",
-          }}
-        >
-          📍 Current Position
-        </div>
-        <div style={{ fontSize: "12px", lineHeight: "1.4" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px",
-            }}
-          >
-            <span style={{ color: "#6B7280" }}>⏱️ Time:</span>
-            <span style={{ fontWeight: "600", color: "#1F2937" }}>
-              {formatTime(timestamp)}
-            </span>
+      <Card className="z-[9999] w-[230px] absolute top-2 left-2 shadow-lg rounded-2xl border border-neutral-200 bg-white/70 backdrop-blur-md">
+        <CardContent className="pl-2 pr-2 pt-0 pb-0 text-sm text-neutral-700">
+          {/* Time */}
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-neutral-500" />
+            <span className="truncate">{formatTime(timestamp)}</span>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px",
-            }}
-          >
-            <span style={{ color: "#6B7280" }}>📍 Lat:</span>
-            <span style={{ fontWeight: "600", color: "#1F2937" }}>
-              {coords.lat}
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px",
-            }}
-          >
-            <span style={{ color: "#6B7280" }}>📍 Lng:</span>
-            <span style={{ fontWeight: "600", color: "#1F2937" }}>
-              {coords.lng}
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "4px",
-            }}
-          >
-            <span style={{ color: "#6B7280" }}>📏 Distance:</span>
-            <span style={{ fontWeight: "600", color: "#1F2937" }}>
-              {distance} m
-            </span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "#6B7280" }}>🎯 Accuracy:</span>
-            <span style={{ fontWeight: "600", color: "#1F2937" }}>
-              {accuracy} cm
-            </span>
-          </div>
-        </div>
-      </div>
 
-      {/* Legend */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 15,
-          left: 15,
-          zIndex: 999,
-          padding: "12px 16px",
-          background: "rgba(255, 255, 255, 0.95)",
-          color: "#1F2937",
-          borderRadius: "12px",
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-          border: "1px solid rgba(0, 0, 0, 0.1)",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "14px",
-            fontWeight: "600",
-            marginBottom: "8px",
-            color: "#374151",
-            borderBottom: "1px solid #E5E7EB",
-            paddingBottom: "4px",
-          }}
-        >
-          🗺️ Map Legend
-        </div>
-        <div style={{ fontSize: "12px", lineHeight: "1.4" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "4px",
-            }}
-          >
-            <div
-              style={{
-                width: "12px",
-                height: "12px",
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #10B981, #059669)",
-                marginRight: "8px",
-                border: "2px solid #ffffff",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-              }}
-            ></div>
-            <span>Start Point</span>
+          {/* Lat / Lng */}
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-red-500" />
+            <span className="truncate">
+              {coords.lat}, {coords.lng}
+            </span>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "4px",
-            }}
-          >
-            <div
-              style={{
-                width: "12px",
-                height: "12px",
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #EF4444, #DC2626)",
-                marginRight: "8px",
-                border: "2px solid #ffffff",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-              }}
-            ></div>
-            <span>End Point</span>
+
+          {/* Distance */}
+          <div className="flex items-center gap-2">
+            <Ruler className="h-4 w-4 text-blue-500" />
+            <span>{distance} m</span>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "4px",
-            }}
-          >
-            <div
-              style={{
-                width: "12px",
-                height: "12px",
-                borderRadius: "50%",
-                background: "#3B82F6",
-                marginRight: "8px",
-                border: "2px solid #ffffff",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-              }}
-            ></div>
-            <span>Current Position</span>
+
+          {/* Accuracy */}
+          <div className="flex items-center gap-2">
+            <Crosshair className="h-4 w-4 text-green-500" />
+            <span>{accuracy} m</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <div
-              style={{
-                width: "12px",
-                height: "2px",
-                background: "#8B5CF6",
-                marginRight: "8px",
-                borderRadius: "1px",
-              }}
-            ></div>
-            <span>Route Path</span>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       <div
         ref={mapRef}
         style={{
@@ -1004,12 +935,42 @@ const SimpleMap = ({
 };
 
 // --- Main Component ---
-export default function VideoWithMap({ videoUrl, locationData }) {
+export default function VideoWithMap({
+  videoUrl,
+  locationData,
+  initialX,
+  initialY,
+}) {
   const [video, setVideo] = useState(null);
   const sortedData = useMemo(
     () => locationData?.sort((a, b) => a.timestamp - b.timestamp) || [],
     [locationData]
   );
+
+  // Find the closest GPS point to initial coordinates if provided
+  let initialTimestamp = 0;
+  if (initialX !== undefined && initialY !== undefined && sortedData?.length) {
+    let closestPoint = sortedData[0];
+    let minDistance = Infinity;
+
+    sortedData.forEach((point) => {
+      const pointLatLng = L.latLng(
+        parseFloat(point.Latitude),
+        parseFloat(point.Longitude)
+      );
+      const initialLatLng = L.latLng(initialY, initialX); // Note: Y is lat, X is lng
+      const distance = initialLatLng.distanceTo(pointLatLng);
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestPoint = point;
+      }
+    });
+
+    initialTimestamp = closestPoint?.timeStamp
+      ? parseFloat(closestPoint.timeStamp)
+      : 0;
+  }
 
   return (
     <PanelGroup
@@ -1018,13 +979,18 @@ export default function VideoWithMap({ videoUrl, locationData }) {
     >
       <Panel defaultSize={50} minSize={30}>
         <div className="w-full h-full rounded-xl overflow-hidden shadow-lg border border-gray-300">
-          <VideoPlayer url={videoUrl} video={video} setVideo={setVideo} />
+          <VideoPlayer
+            url={videoUrl}
+            video={video}
+            setVideo={setVideo}
+            initialTimestamp={initialTimestamp}
+          />
         </div>
       </Panel>
       <PanelResizeHandle className="w-2 cursor-col-resize bg-gray-200 hover:bg-gray-400 transition" />
       <Panel defaultSize={50} minSize={30}>
         <div className="w-full h-full rounded-xl overflow-hidden shadow-lg border border-gray-300">
-          <SimpleMap data={sortedData} video={video} />
+          {video && <SimpleMap data={sortedData} video={video} />}
         </div>
       </Panel>
     </PanelGroup>

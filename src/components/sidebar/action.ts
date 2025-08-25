@@ -175,7 +175,7 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
         block,
         ring,
         child_ring
-      `)
+      `, {count: "exact"})
       .order('created_at', { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1);
 
 
@@ -225,10 +225,9 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
 
     if (filters.dateKey && filters.dateFrom && filters.dateTo) {
 
-   //   console.log(filters.dateKey, filters.dateFrom, filters.dateTo, 'date filters')
-
       const column = filters.dateKey === 'Mobile_Video_Capture_Time' ? 'timestamp' :
-                    filters.dateKey === 'Created_On' ? 'created_at' : null;
+                    filters.dateKey === 'Created_On' ? 'created_at' :
+                    filters.dateKey === 'verified_on' ? 'verified_on' : null;
       
       if (column) {
         if (column === 'timestamp') {
@@ -252,7 +251,7 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
       }
     }
 
-    const { data: surveys, error: surveysError } = await query;
+    const { data: surveys, error: surveysError, count } = await query;
     if (surveysError) throw surveysError;
 
 
@@ -286,7 +285,8 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
           const gpsTrack = gpsTracksMap.get(survey.gps_track_id) || {};
           const user = usersMap.get(survey.user_id) || {};
           return {
-            hasMore: true,
+            hasMore: page * pageSize < (count ?? 0),
+            count: count ?? 0,
             routeName: survey.name || "-",
             surveyId: survey.id,
             videoName: video.name || "-",

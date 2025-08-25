@@ -484,7 +484,10 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "Entity Name",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="w-20 text-center text-xs font-semibold text-[#46474b] truncate bg-[#f2f0fc] rounded pl-1 pr-1">
+          <span
+            title={row.original.entityName}
+            className="w-20 text-center text-xs font-semibold text-[#46474b] truncate bg-[#f2f0fc] rounded pl-1 pr-1"
+          >
             {row.original.entityName.length > 20
               ? row.original.entityName.slice(0, 20) + "..."
               : row.original.entityName}
@@ -497,7 +500,10 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "State",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="w-20 text-center text-xs font-semibold text-[#803fb6] truncate bg-[#eed7fc] rounded px-1 py-0.5">
+          <span
+            title={row.original.state}
+            className="w-20 text-center text-xs font-semibold text-[#803fb6] truncate bg-[#eed7fc] rounded px-1 py-0.5"
+          >
             {row.original.state.length > 20
               ? row.original.state.slice(0, 20) + "..."
               : row.original.state}
@@ -510,7 +516,10 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "District",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="w-20 text-center text-xs font-semibold text-[#803fb6] truncate bg-[#eed7fc] rounded px-1 py-0.5">
+          <span
+            title={row.original.district}
+            className="w-20 text-center text-xs font-semibold text-[#803fb6] truncate bg-[#eed7fc] rounded px-1 py-0.5"
+          >
             {row.original.district.length > 20
               ? row.original.district.slice(0, 20) + "..."
               : row.original.district}
@@ -523,7 +532,10 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "Block",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="w-20 text-center text-xs font-semibold text-[#803fb6] truncate bg-[#eed7fc] rounded px-1 py-0.5">
+          <span
+            title={row.original.block}
+            className="w-20 text-center text-xs font-semibold text-[#803fb6] truncate bg-[#eed7fc] rounded px-1 py-0.5"
+          >
             {row.original.block.length > 20
               ? row.original.block.slice(0, 20) + "..."
               : row.original.block}
@@ -562,6 +574,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "Video Name",
       cell: ({ row }) => (
         <span
+          title={row.original.videoName}
           className={`w-24 text-center text-xs font-semibold ${
             row.original.videoName === "-"
               ? "text-[#d68a00] bg-[#FFFCE6] border border-[#e06c00]"
@@ -661,7 +674,13 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         };
         return (
           <span
-            className={`w-28 text-center text-xs font-semibold rounded px-1 py-0.5 text-[#29444f] bg-[#b3df72]`}
+            className={`w-28 text-center text-xs font-semibold rounded px-1 py-0.5 ${
+              row.original.verifiedStatus === "PENDING"
+                ? "bg-[#cfe3fc] text-[#1d4ed8]"
+                : row.original.verifiedStatus === "APPROVED"
+                ? "bg-[#d6f5d6] text-[#1f7d1f]"
+                : "bg-[#ffe6b3] text-[#b35900]"
+            } text-[#29444f] bg-[#b3df72]`}
           >
             {row.original.verifiedStatus}
           </span>
@@ -881,6 +900,12 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
                   >
                     Created On
                   </CommandItem>
+                  <CommandItem
+                    value="Verified_On"
+                    onSelect={() => handleDateFilterChange("verified_on")}
+                  >
+                    Verified On
+                  </CommandItem>
                 </CommandList>
               </Command>
             </PopoverContent>
@@ -895,6 +920,9 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         </div>
       </div>
       <DataTable columns={columns} data={data} isFetching={isFetching} />
+      <p className="text-sm text-gray-500 mt-1 text-center">
+        {data && data[0].count} results found
+      </p>
       <div className="flex items-center space-x-2 py-4 mt-4">
         <Pagination>
           <PaginationContent>
@@ -936,8 +964,6 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
           </PaginationContent>
         </Pagination>
       </div>
-
-      {/* Edit Route Name Modal */}
     </div>
   );
 }
