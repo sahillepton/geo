@@ -80,11 +80,6 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
-  const [deletingUser, setDeletingUser] = useState<any>(null);
 
   // Fetch all users data
   const { data, isLoading, refetch } = useQuery({
@@ -281,43 +276,13 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
             ),
             cell: ({ row }) => (
               <div className="flex items-center gap-2 justify-center">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setEditingUser(row.original);
-                        setShowEditModal(true);
-                      }}
-                      className="h-8 w-8 p-0 hover:bg-blue-50"
-                    >
-                      <EditIcon size={16} className="text-blue-600" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Edit user</p>
-                  </TooltipContent>
-                </Tooltip>
+                <EditUserModel
+                  currentUser={currentUser}
+                  data={data}
+                  user={row.original}
+                />
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setDeletingUser(row.original);
-                        setShowDeleteModal(true);
-                      }}
-                      className="h-8 w-8 p-0 hover:bg-red-50"
-                    >
-                      <TrashIcon size={16} className="text-red-600" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Delete user</p>
-                  </TooltipContent>
-                </Tooltip>
+                <DeleteUserModal deletingUser={row.original} />
               </div>
             ),
           },
@@ -332,7 +297,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
   }, [data?.users]);
 
   return (
-    <div className="container py-10 max-w-[1050px] mx-auto">
+    <div className="container py-8 max-w-[1050px] mx-auto">
       <div className="mb-4 w-full flex justify-between items-center">
         <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2">
           <SearchIcon size={16} />
@@ -377,13 +342,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
             </PopoverContent>
           </Popover>
           {currentUser.role?.toLowerCase() !== "surveyor" && (
-            <Button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 h-8"
-            >
-              <PlusIcon size={16} />
-              Add User
-            </Button>
+            <AddUserModal currentUser={currentUser} data={data} />
           )}
         </div>
       </div>
@@ -433,31 +392,6 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
           </PaginationContent>
         </Pagination>
       </div>
-      {/* Add User Modal */}
-      <AddUserModal
-        currentUser={currentUser}
-        data={data}
-        showAddModal={showAddModal}
-        setShowAddModal={setShowAddModal}
-      />
-      {/* Edit User Modal */}
-      {editingUser && (
-        <EditUserModel
-          currentUser={currentUser}
-          data={data}
-          showEditModal={showEditModal}
-          setShowEditModal={setShowEditModal}
-          user={editingUser}
-          setEditingUser={setEditingUser}
-        />
-      )}
-      {/* Delete User Modal */}
-      <DeleteUserModal
-        showDeleteModal={showDeleteModal}
-        setShowDeleteModal={setShowDeleteModal}
-        deletingUser={deletingUser}
-        setDeletingUser={setDeletingUser}
-      />
     </div>
   );
 }

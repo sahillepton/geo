@@ -50,13 +50,7 @@ import {
 } from "../ui/command";
 import { CommandInput } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import {
-  Select,
-  SelectItem,
-  SelectContent,
-  SelectValue,
-  SelectTrigger,
-} from "../ui/select";
+
 import { DateRangePicker } from "../sidebar/date-range-picker";
 import { supabase } from "@/lib/supabase";
 import {
@@ -70,6 +64,12 @@ import { Label } from "../ui/label";
 import { User } from "@/lib/types";
 import { toast } from "sonner";
 import { useSurveyStore } from "@/lib/store";
+import DownloadSurvey from "./download-survey";
+import EditRouteName from "./edit-route-name";
+import {
+  getStateDistrictFromBlockName,
+  getStateFromDistrictName,
+} from "@/lib/get-state-district";
 
 // Define some color pairs
 const avatarColors = [
@@ -98,11 +98,6 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
   const [selectedDateFilter, setSelectedDateFilter] = useState("");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  const [showEditRouteModal, setShowEditRouteModal] = useState(false);
-  const [editingRoute, setEditingRoute] = useState<any>(null);
-  const [newRouteName, setNewRouteName] = useState("");
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadingGpsTrackId, setDownloadingGpsTrackId] = useState("");
   const { setSurveys, setLoading } = useSurveyStore();
 
   // Load all filters from localStorage on component mount
@@ -302,16 +297,15 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
   const { status, data, error, isFetching, isPlaceholderData } = useQuery({
     queryKey: ["videos", page, filters],
     queryFn: async () => {
-      console.time("getVideoList");
       setLoading(true);
       const data = await getVideoList(filters, page, 10);
-      console.timeEnd("getVideoList");
       setSurveys(
         JSON.parse(data.data).Result.map((survey: any) => ({
           id: survey.surveyId,
           name: survey.routeName,
         }))
       );
+      //   console.log(JSON.parse(data.data).Result, "data");
       setLoading(false);
       return JSON.parse(data.data).Result;
     },
@@ -335,10 +329,18 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
   const handleStateChange = (value: string) => {
     setSelectedState(value);
   };
-  const handleDistrictChange = (value: string) => {
+  const handleDistrictChange = async (value: string) => {
+    const state = await getStateFromDistrictName(value);
+    //  console.log(state, "state");
+    setSelectedState(state.st_name);
     setSelectedDistrict(value);
   };
-  const handleBlockChange = (value: string) => {
+  const handleBlockChange = async (value: string) => {
+    const stateDistrict = await getStateDistrictFromBlockName(value);
+    //  console.log(stateDistrict, "stateDistrict");
+    setSelectedState(stateDistrict.st_name);
+    setSelectedDistrict(stateDistrict.dt_name);
+
     setSelectedBlock(value);
   };
 
@@ -363,40 +365,6 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
   const handleDateRangeChange = (range: { from?: Date; to?: Date }) => {
     setDateFrom(range.from);
     setDateTo(range.to);
-  };
-
-  const handleEditRouteName = (route: any) => {
-    setEditingRoute(route);
-    setNewRouteName(route.routeName);
-    setShowEditRouteModal(true);
-  };
-
-  const handleUpdateRouteName = async () => {
-    try {
-      if (!editingRoute || !newRouteName.trim()) return;
-
-      const { error } = await supabase
-        .from("surveys")
-        .update({ name: newRouteName.trim() })
-        .eq("id", editingRoute.surveyId);
-
-      if (error) throw error;
-
-      alert("Route name updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["videos"] });
-      setShowEditRouteModal(false);
-      setEditingRoute(null);
-      setNewRouteName("");
-    } catch (error: any) {
-      console.error("Error updating route name:", error);
-      alert("Failed to update route name: " + error.message);
-    }
-  };
-
-  const closeEditRouteModal = () => {
-    setShowEditRouteModal(false);
-    setEditingRoute(null);
-    setNewRouteName("");
   };
 
   const getPageNumbers = () => {
@@ -424,7 +392,6 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
 
   useEffect(() => {
     if (!isPlaceholderData && data?.hasMore) {
-      //  const filters = getFilters();
       queryClient.prefetchQuery({
         queryKey: ["videos", page + 1, filters],
         queryFn: () => getVideoList(filters, page + 1, 10),
@@ -437,7 +404,6 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
     const hasNonDateFilters =
       selectedState || selectedDistrict || selectedBlock || search;
     if (hasCompleteDateFilter || hasNonDateFilters) {
-      //  console.log("calling date filter");
       setPage(1);
       queryClient.prefetchQuery({
         queryKey: ["videos", 1, filters],
@@ -459,40 +425,6 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
     search,
   ]);
 
-  const handleDownloadGeoJSON = async (gpsTrackId: string) => {
-    try {
-      setIsDownloading(true);
-      setDownloadingGpsTrackId(gpsTrackId);
-      const { data, error } = await supabase
-        .from("gps_tracks")
-        .select("location_data, name")
-        .eq("id", gpsTrackId)
-        .single();
-      if (error) {
-        console.error("Error downloading GPS data as CSV:", error);
-        toast.error("Failed to download location data");
-        return;
-      }
-      const csv = Papa.unparse(data.location_data);
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${data.name}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success(`${data.name} downloaded successfully`);
-    } catch (error) {
-      console.error("Error downloading GPS data as CSV:", error);
-      toast.error("Failed to download location data");
-    } finally {
-      setIsDownloading(false);
-      setDownloadingGpsTrackId("");
-    }
-  };
-
   function sumTimestamps(totalSeconds: number) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -511,29 +443,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       accessorKey: "action",
       header: "",
       cell: ({ row }) => {
-        //console.log(row.original);
-
-        return (
-          <div
-            className="flex gap-1 w-8 justify-center items-center "
-            onClick={() => handleDownloadGeoJSON(row.original.gpsTrackId)}
-          >
-            <div className="rounded-full p-1 hover:bg-[#e2f0cb] transition">
-              {isDownloading &&
-              downloadingGpsTrackId === row.original.gpsTrackId ? (
-                <Loader2
-                  size={16}
-                  className="animate-spin cursor-pointer text-[#6a9a23]"
-                />
-              ) : (
-                <DownloadIcon
-                  size={16}
-                  className="cursor-pointer text-[#6a9a23]"
-                />
-              )}
-            </div>
-          </div>
-        );
+        return <DownloadSurvey gpsTrackId={row.original.gpsTrackId} />;
       },
     },
     {
@@ -561,15 +471,10 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
               : row.original.routeName}
           </p>
           {currentUser.role?.toLowerCase() === "admin" && (
-            <div
-              className="cursor-pointer hidden group-hover:flex rounded-sm hover:bg-[#eed7fc] p-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEditRouteName(row.original);
-              }}
-            >
-              <SquarePen size={14} />
-            </div>
+            <EditRouteName
+              routeName={row.original.routeName}
+              surveyId={row.original.surveyId}
+            />
           )}
         </div>
       ),
@@ -712,7 +617,6 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "Created On",
       cell: ({ row }) => {
         const date = moment(row.original.createdOn).format("DD MMM YYYY");
-        //const time = moment(row.original.createdOn).format("hh:mm:ss A");
         return (
           <div className="flex items-center gap-1 justify-center w-28 text-xs font-semibold text-[#46474b] bg-[#f2f0fc] border border-[#46474b] rounded px-1 py-0.5">
             <CalendarIcon size={14} />
@@ -807,7 +711,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
   ];
 
   return (
-    <div className="container py-10 max-w-[1050px] mx-auto">
+    <div className="container py-6 max-w-[1050px] mx-auto">
       <div className="mb-4 w-full flex justify-between">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2">
@@ -1034,30 +938,6 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       </div>
 
       {/* Edit Route Name Modal */}
-      <Dialog open={showEditRouteModal} onOpenChange={setShowEditRouteModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Route Name</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="route-name">Route Name</Label>
-              <Input
-                id="route-name"
-                value={newRouteName}
-                onChange={(e) => setNewRouteName(e.target.value)}
-                placeholder="Enter new route name"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeEditRouteModal}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateRouteName}>Update Route Name</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

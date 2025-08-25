@@ -262,7 +262,7 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
 
     const [videosResponse, gpsTracksResponse, usersResponse] = await Promise.all([
       videoIds.length > 0 ? 
-        supabase.from('videos').select('*').in('id', videoIds) :
+        supabase.from('videos').select('id, name, created_at, verified_by, verified_on, url, users(username)').in('id', videoIds) :
         { data: [] },
       gpsTrackIds.length > 0 ?
         supabase.from('gps_tracks').select('id, entity_id, duration').in('id', gpsTrackIds) :
@@ -271,6 +271,8 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
         supabase.from('users').select('user_name').in('user_id', userIds) :
         { data: [] }
     ]);
+
+  //  console.log(videosResponse.data, 'videosResponse')
 
     const videosMap = new Map(videosResponse.data?.map(v => [v.id, v]) || []);
     const gpsTracksMap = new Map(gpsTracksResponse.data?.map(g => [g.id, g]) || []);
@@ -306,7 +308,7 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
             ring: survey.ring || "-",
             childRing: survey.child_ring || "-",
             duration: gpsTrack.duration || 0,
-            verifiedBy: video.verified_by || null,
+            verifiedBy: video.users?.username || null,
             verifiedOn: video.verified_on || null
           };
         })

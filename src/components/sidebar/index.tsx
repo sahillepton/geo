@@ -176,7 +176,7 @@ export function AppSidebar({
   const breadcrumbItems = pathname.split("/").filter((item) => item !== "");
   const surveyId = breadcrumbItems.length > 1 ? breadcrumbItems[1] : null;
   const { surveys, loading } = useSurveyStore();
-  console.log(surveys, "surveys zustand");
+  //  console.log(surveys, "surveys zustand");
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>

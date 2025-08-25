@@ -4,35 +4,23 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogTrigger,
 } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { deleteUser } from "./action";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { TrashIcon } from "lucide-react";
 
-const DeleteUserModal = ({
-  showDeleteModal,
-  setShowDeleteModal,
-  deletingUser,
-  setDeletingUser,
-}: {
-  showDeleteModal: boolean;
-  setShowDeleteModal: (show: boolean) => void;
-  deletingUser: any;
-  setDeletingUser: (user: any) => void;
-}) => {
-  // console.log(deletingUser, "deletingUser");
+const DeleteUserModal = ({ deletingUser }: { deletingUser: any }) => {
   const queryClient = useQueryClient();
   return (
-    <Dialog
-      open={showDeleteModal}
-      onOpenChange={(open) => {
-        if (!open) {
-          setShowDeleteModal(false);
-          setDeletingUser(null);
-        }
-      }}
-    >
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm">
+          <TrashIcon size={16} className="text-red-600" />
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Delete User</DialogTitle>
@@ -45,15 +33,7 @@ const DeleteUserModal = ({
           </p>
         </div>
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowDeleteModal(false);
-              setDeletingUser(null);
-            }}
-          >
-            Cancel
-          </Button>
+          <Button variant="outline">Cancel</Button>
           <Button
             variant="destructive"
             onClick={async () => {
@@ -62,8 +42,6 @@ const DeleteUserModal = ({
                 toast.error(error);
               } else {
                 toast.success("User deleted successfully");
-                setShowDeleteModal(false);
-                setDeletingUser(null);
                 queryClient.invalidateQueries({
                   queryKey: ["users-management"],
                 });

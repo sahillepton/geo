@@ -1,6 +1,12 @@
 //@ts-nocheck
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+"use client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import {
@@ -15,17 +21,13 @@ import { DialogFooter } from "../ui/dialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addUser } from "./action";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, PlusIcon } from "lucide-react";
 import { useActionState, useEffect } from "react";
 
 const AddUserModal = ({
-  showAddModal,
-  setShowAddModal,
   currentUser,
   data,
 }: {
-  showAddModal: boolean;
-  setShowAddModal: (show: boolean) => void;
   currentUser: any;
   data: any;
 }) => {
@@ -36,19 +38,17 @@ const AddUserModal = ({
     if (state?.message) {
       toast.success(state.message);
       queryClient.invalidateQueries({ queryKey: ["users-management"] });
-      setShowAddModal(false);
     }
-  }, [state?.message, queryClient, setShowAddModal]);
+  }, [state?.message, queryClient]);
 
   return (
-    <Dialog
-      open={showAddModal}
-      onOpenChange={(open) => {
-        if (!open) {
-          setShowAddModal(false);
-        }
-      }}
-    >
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button className="flex items-center gap-2 h-8">
+          <PlusIcon size={16} />
+          Add User
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-lg rounded-lg shadow-lg p-6 bg-white">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-gray-800">
@@ -196,9 +196,7 @@ const AddUserModal = ({
           </div>
 
           <DialogFooter className="mt-6 flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setShowAddModal(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline">Cancel</Button>
             <Button type="submit" disabled={isPending}>
               {isPending ? <Loader2 className="animate-spin" /> : "Add User"}
             </Button>

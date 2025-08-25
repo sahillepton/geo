@@ -1,19 +1,10 @@
 import VideoWithMap from "@/components/video-player";
 import { createClient } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import axios from "axios";
 import { Suspense } from "react";
 import MP4VideoWithMap from "@/components/video-player/mp4-player";
 import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import Feedback from "../feedback";
 
 const PreviewPage = async ({
@@ -46,38 +37,6 @@ const PreviewPage = async ({
   const { data: videoData, error: videoError } = videoResult;
   const { data: surveyData, error: surveyError } = surveyResult;
 
-  if (videoData.mux_playback_id && videoData.status !== "ready") {
-    const id = videoData.mux_playback_id.substring(
-      videoData.mux_playback_id.lastIndexOf("/") + 1,
-      videoData.mux_playback_id.lastIndexOf(".")
-    );
-
-    const asset_data = await axios.get(
-      `http://localhost:3000/api/mux-status/${id}`
-    );
-
-    if (asset_data.data.status !== "ready") {
-      return (
-        <div className="flex flex-col justify-center items-center h-screen">
-          <h1 className="text-2xl font-bold">Video is still processing</h1>
-          <Link
-            href="/geotaggedvideos"
-            className="text-gray-800 hover:text-gray-600 underline text-sm"
-          >
-            Go back to surveys?
-          </Link>
-        </div>
-      );
-    }
-
-    if (asset_data.data.status === "ready") {
-      await supabase
-        .from("videos")
-        .update({ status: "ready" })
-        .eq("id", videoData.id);
-    }
-  }
-
   return (
     <Suspense
       fallback={
@@ -106,7 +65,7 @@ const PreviewPage = async ({
       {videoData.mux_playback_id ? (
         <div className="p-4">
           <VideoWithMap
-            videoUrl={videoData?.url}
+            videoUrl={videoData?.mux_playback_id}
             locationData={surveyData?.gps_tracks?.location_data}
           />
         </div>

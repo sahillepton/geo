@@ -6,6 +6,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -17,48 +18,38 @@ import {
   SelectValue,
 } from "../ui/select";
 import { editUser } from "./action";
-import { Loader2 } from "lucide-react";
+import { Loader2, PencilIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
 const EditUserModel = ({
-  showEditModal,
-  setShowEditModal,
   currentUser,
   data,
   user,
-  setEditingUser,
 }: {
-  showEditModal: boolean;
-  setShowEditModal: (show: boolean) => void;
   currentUser: any;
   data: any;
   user: any;
-  setEditingUser: (user: any) => void;
 }) => {
   // console.log(user, "user edit");
+  // console.log(currentUser, data, user, "edit user");
   const [state, formAction, isPending] = useActionState(editUser, null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (state?.message && state?.success) {
       toast.success(state.message);
-      setEditingUser(null);
-      setShowEditModal(false);
       queryClient.invalidateQueries({ queryKey: ["users-management"] });
     }
-  }, [state?.message, setShowEditModal, setEditingUser, queryClient]);
+  }, [state?.message, queryClient]);
 
   return (
-    <Dialog
-      open={showEditModal}
-      onOpenChange={(open) => {
-        if (!open) {
-          setShowEditModal(false);
-          setEditingUser(null);
-        }
-      }}
-    >
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm">
+          <PencilIcon size={16} className="text-gray-600" />
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-lg rounded-lg shadow-lg p-6 bg-white">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-gray-800">
@@ -178,7 +169,11 @@ const EditUserModel = ({
                     <SelectContent>
                       <SelectItem value="no-manager">No Manager</SelectItem>
                       {data?.allUsers
-                        ?.filter((u: any) => u.role === "manager")
+                        ?.filter(
+                          (u: any) =>
+                            (u.role === "manager" || u.role === "admin") &&
+                            u.user_id !== user?.user_id
+                        )
                         .map((u: any) => (
                           <SelectItem key={u.user_id} value={u.user_id}>
                             {u.username}
@@ -218,14 +213,7 @@ const EditUserModel = ({
 
           {/* Footer */}
           <DialogFooter className="mt-6 flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setShowEditModal(false);
-                setEditingUser(null);
-              }}
-            >
+            <Button type="button" variant="outline">
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
