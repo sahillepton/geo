@@ -33,7 +33,7 @@ export function LoginForm({
               </div>
               <span className="sr-only">Acme Inc.</span>
             </a>
-            <h1 className="text-xl font-bold">Welcome to Acme Inc.</h1>
+            <h1 className="text-xl font-bold">Welcome to Geo Tagged Video</h1>
           </div>
           <div className="flex flex-col gap-6">
             <div className="grid gap-3">
