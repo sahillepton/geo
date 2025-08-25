@@ -224,32 +224,36 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
     }
 
     if (filters.dateKey && filters.dateFrom && filters.dateTo) {
-
-      const column = filters.dateKey === 'Mobile_Video_Capture_Time' ? 'timestamp' :
-                    filters.dateKey === 'Created_On' ? 'created_at' :
-                    filters.dateKey === 'verified_on' ? 'verified_on' : null;
-      
+      const column =
+        filters.dateKey === 'Mobile_Video_Capture_On'
+          ? 'timestamp'
+          : filters.dateKey === 'Created_On'
+          ? 'created_at'
+          : filters.dateKey === 'Verified_On'
+          ? 'verified_on'
+          : null;
+    
       if (column) {
+        const fromDate = new Date(filters.dateFrom);
+        const toDate = new Date(filters.dateTo);
+    
         if (column === 'timestamp') {
-          // Convert ISO date (YYYY-MM-DD) to DD-MM-YYYY format for timestamp column
-          const fromDate = new Date(filters.dateFrom);
-          const toDate = new Date(filters.dateTo);
-          
-          // Format as DD-MM-YYYY to match database format
-          const fromDateFormatted = `${String(fromDate.getDate()).padStart(2, '0')}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-${fromDate.getFullYear()}`;
-          const toDateFormatted = `${String(toDate.getDate()).padStart(2, '0')}-${String(toDate.getMonth() + 1).padStart(2, '0')}-${toDate.getFullYear()}`;
-          
+          // Include full day for timestamp column
+          const fromDateFormatted = `${String(fromDate.getDate()).padStart(2, '0')}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-${fromDate.getFullYear()} 00:00:00`;
+          const toDateFormatted = `${String(toDate.getDate()).padStart(2, '0')}-${String(toDate.getMonth() + 1).padStart(2, '0')}-${toDate.getFullYear()} 23:59:59`;
+    
           query = query
             .gte(column, fromDateFormatted)
             .lte(column, toDateFormatted);
         } else {
-          // For created_at column, use ISO format as is
+          // For ISO format columns like created_at or verified_on
           query = query
             .gte(column, filters.dateFrom)
             .lte(column, filters.dateTo);
         }
       }
     }
+    
 
     const { data: surveys, error: surveysError, count } = await query;
     if (surveysError) throw surveysError;

@@ -369,17 +369,29 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
 
   const getPageNumbers = () => {
     const pages = [];
-    const maxPagesToShow = 5; // number of pages to show including ellipsis
+    const maxPagesToShow = 5;
+    const pageSize = 10;
+    if (!data || !data[0]) return [];
 
-    if (100 <= maxPagesToShow) {
-      for (let i = 1; i <= 100; i++) pages.push(i);
+    // Calculate total pages based on count and page size
+    const totalPages = Math.ceil(data[0].count / pageSize);
+
+    if (totalPages <= maxPagesToShow) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       if (page <= 3) {
-        pages.push(1, 2, 3, 4, "...");
-      } else if (page >= 100 - 2) {
-        pages.push(1, "...", 100 - 3, 100 - 2, 100 - 1, 100);
+        pages.push(1, 2, 3, 4, "...", totalPages);
+      } else if (page >= totalPages - 2) {
+        pages.push(
+          1,
+          "...",
+          totalPages - 3,
+          totalPages - 2,
+          totalPages - 1,
+          totalPages
+        );
       } else {
-        pages.push(1, "...", page - 1, page, page + 1, "...", 100);
+        pages.push(1, "...", page - 1, page, page + 1, "...", totalPages);
       }
     }
     return pages;
@@ -900,12 +912,12 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
                   >
                     Created On
                   </CommandItem>
-                  <CommandItem
+                  {/* <CommandItem
                     value="Verified_On"
-                    onSelect={() => handleDateFilterChange("verified_on")}
+                    onSelect={() => handleDateFilterChange("Verified_On")}
                   >
                     Verified On
-                  </CommandItem>
+                  </CommandItem> */}
                 </CommandList>
               </Command>
             </PopoverContent>
