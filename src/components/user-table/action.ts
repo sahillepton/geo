@@ -74,10 +74,15 @@ export const editUser = async (prevState: any, formData: FormData) => {
     const supabase = await createClient()
 
 
-    if (formData.keys().find(key => key === "role") && formData.get("role") === "manager_id") {
+    if (
+        !Array.from(formData.keys()).includes("role") &&
+        !Array.from(formData.keys()).includes("manager_id")
+      ) {
         formData.set("manager_id", "")
         formData.set("role", "")
-    } 
+      }
+      
+      
 
     const editUserSchema = z.object({
         username: z.string().optional(),
@@ -96,6 +101,7 @@ export const editUser = async (prevState: any, formData: FormData) => {
         role: formData.get("role"),
         location: formData.get("location"),
         userId: formData.get("userId"),
+        manager_id: formData.get("manager_id"),
     })
     
     if (!validatedFields.success) {
@@ -116,6 +122,8 @@ if (validatedFields.data.password) updateData.password = validatedFields.data.pa
 if (validatedFields.data.role) updateData.role = validatedFields.data.role;
 if (validatedFields.data.location) updateData.location = validatedFields.data.location;
 if (validatedFields.data.manager_id) updateData.manager_id = validatedFields.data.manager_id;
+
+    // console.log(updateData, "updateData");
 
     const { data, error } = await supabase.from("users").update(updateData).eq("user_id", validatedFields.data.userId)
 

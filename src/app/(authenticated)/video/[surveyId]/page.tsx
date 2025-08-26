@@ -75,7 +75,7 @@ const VideoPage = async ({
     );
 
     const asset_data = await axios.get(
-      `http://localhost:3000/api/mux-status/${id}`
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/mux-status/${id}`
     );
 
     if (asset_data.data.status !== "ready") {
