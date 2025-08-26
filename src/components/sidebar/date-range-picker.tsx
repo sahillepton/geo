@@ -52,7 +52,7 @@ export function DateRangePicker({
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            className="w-28 justify-between font-normal text-xs h-8"
+            className="w-28 justify-between font-normal text-xs h-8 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white "
             disabled={disabled}
           >
             {fromDate ? fromDate.toLocaleDateString() : "From Date"}
@@ -74,7 +74,7 @@ export function DateRangePicker({
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            className="w-28 justify-between font-normal text-xs h-8"
+            className="w-28 justify-between font-normal text-xs h-8 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
             disabled={disabled}
           >
             {toDate ? toDate.toLocaleDateString() : "To Date"}

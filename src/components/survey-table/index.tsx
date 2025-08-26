@@ -17,17 +17,20 @@ import {
 import { ColumnDef } from "@tanstack/react-table";
 import Papa from "papaparse";
 import {
+  BadgeCheckIcon,
   CalendarIcon,
   ChevronDownIcon,
   ClockIcon,
   DownloadIcon,
   Loader2,
+  RouteIcon,
   SearchIcon,
   SquarePen,
+  XIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import moment from "moment";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
 import {
   Pagination,
@@ -70,6 +73,14 @@ import {
   getStateDistrictFromBlockName,
   getStateFromDistrictName,
 } from "@/lib/get-state-district";
+import RowAction from "./row-action";
+import { Badge } from "../ui/badge";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "../ui/hover-card";
+import Link from "next/link";
 
 // Define some color pairs
 const avatarColors = [
@@ -455,7 +466,14 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       accessorKey: "action",
       header: "",
       cell: ({ row }) => {
-        return <DownloadSurvey gpsTrackId={row.original.gpsTrackId} />;
+        return (
+          <RowAction
+            gpsTrackId={row.original.gpsTrackId}
+            surveyId={row.original.surveyId}
+            routeName={row.original.routeName}
+            role={currentUser.role}
+          />
+        );
       },
     },
     {
@@ -466,29 +484,38 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         </span>
       ),
       cell: ({ row }) => (
-        <div className="flex items-center gap-1 w-[200px] group justify-between">
-          <p
-            className="text-sm font-semibold text-[#46474b] truncate hover:underline transition duration-200 mb-0"
-            title={row.original.routeName}
-            style={{
-              marginBottom: "0px",
-            }}
-            onClick={() => {
-              toast.info("Redirecting to video player...");
-              router.push(`/video/${row.original.surveyId}`);
-            }}
-          >
-            {row.original.routeName.length > 22
-              ? row.original.routeName.slice(0, 22) + "..."
-              : row.original.routeName}
-          </p>
-          {currentUser.role?.toLowerCase() === "admin" && (
-            <EditRouteName
-              routeName={row.original.routeName}
-              surveyId={row.original.surveyId}
-            />
-          )}
-        </div>
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <Button variant="link" className="text-left">
+              {row.original.routeName}
+            </Button>
+          </HoverCardTrigger>
+          <HoverCardContent className="w-80">
+            <div className="flex gap-4 items-center">
+              <div className="bg-black text-white rounded-full p-2 w-10 h-10 flex items-center justify-center">
+                <RouteIcon size={20} />
+              </div>
+              <div className="space-y-1">
+                <Link
+                  href={`/survey/${row.original.surveyId}`}
+                  className="text-sm font-semibold hover:underline"
+                >
+                  {row.original.routeName}
+                </Link>
+                <div className="flex gap-2">
+                  <Badge variant={"secondary"}>{row.original.state}</Badge>
+                  <Badge variant={"secondary"}>{row.original.district}</Badge>
+                  <Badge variant={"secondary"}>{row.original.block}</Badge>
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  {moment(row.original.mobileVideoCaptureTime).format(
+                    "DD MMM YYYY"
+                  )}
+                </div>
+              </div>
+            </div>
+          </HoverCardContent>
+        </HoverCard>
       ),
     },
     {
@@ -498,7 +525,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.entityName}
-            className="w-20 text-center text-xs font-semibold text-[#46474b] truncate bg-[#f2f0fc] rounded pl-1 pr-1"
+            className="w-20 text-center text-xs font-semibold  truncate rounded pl-1 pr-1 text-[#11181c]"
           >
             {row.original.entityName.length > 20
               ? row.original.entityName.slice(0, 20) + "..."
@@ -514,7 +541,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.state}
-            className="w-20 text-center text-xs font-semibold text-[#803fb6] truncate bg-[#eed7fc] rounded px-1 py-0.5"
+            className="w-20 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c]"
           >
             {row.original.state.length > 20
               ? row.original.state.slice(0, 20) + "..."
@@ -530,7 +557,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.district}
-            className="w-20 text-center text-xs font-semibold text-[#803fb6] truncate bg-[#eed7fc] rounded px-1 py-0.5"
+            className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c]"
           >
             {row.original.district.length > 20
               ? row.original.district.slice(0, 20) + "..."
@@ -546,7 +573,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.block}
-            className="w-20 text-center text-xs font-semibold text-[#803fb6] truncate bg-[#eed7fc] rounded px-1 py-0.5"
+            className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c]"
           >
             {row.original.block.length > 20
               ? row.original.block.slice(0, 20) + "..."
@@ -560,7 +587,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "Ring",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="w-20 text-center text-xs font-semibold text-[#2196ae] truncate bg-[#baf3db] rounded px-1 py-0.5">
+          <span className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c]">
             {row.original.ring.length > 20
               ? row.original.ring.slice(0, 20) + "..."
               : row.original.ring}
@@ -573,7 +600,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "Child Ring",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="w-20 text-center text-xs font-semibold  text-[#2196ae] truncate bg-[#baf3db]  rounded px-1 py-0.5">
+          <span className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c]">
             {row.original.childRing.length > 20
               ? row.original.childRing.slice(0, 20) + "..."
               : row.original.childRing}
@@ -585,38 +612,38 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       accessorKey: "video_name",
       header: "Video Name",
       cell: ({ row }) => (
-        <span
-          title={row.original.videoName}
-          className={`w-24 text-center text-xs font-semibold ${
+        <Badge
+          className={`text-xs ${
             row.original.videoName === "-"
-              ? "text-[#d68a00] bg-[#FFFCE6] border border-[#e06c00]"
-              : "text-[#296340] bg-[#94c748]"
-          }  rounded px-1 py-0.5 truncate`}
+              ? "bg-[#fdd0df] text-[#c20e4d]"
+              : "bg-[#d1f4e0] text-[#419967]"
+          }`}
         >
-          {row.original.videoName === "-"
-            ? "Not Uploaded"
-            : row.original.videoName.length > 20
-            ? row.original.videoName.slice(0, 20) + "..."
-            : row.original.videoName}
-        </span>
+          {row.original.videoName === "-" ? (
+            <span className="flex items-center gap-1">
+              {" "}
+              <XIcon size={14} /> Not Uploaded
+            </span>
+          ) : (
+            row.original.videoName
+          )}
+        </Badge>
       ),
     },
     {
       accessorKey: "duration",
       header: "Duration",
       cell: ({ row }) => (
-        <div className="flex items-center justify-center">
-          <span className="w-16 text-center text-xs gap-2 flex items-center font-semibold text-[#d68a00] bg-[#FFFCE6] border border-[#e06c00] rounded px-1 py-0.5 ">
-            {row.original.duration > 0 ? (
-              <>
-                <ClockIcon size={14} className="ml-1" />
-                {sumTimestamps(row.original.duration)}
-              </>
-            ) : (
-              "00:00"
-            )}
-          </span>
-        </div>
+        <Badge variant={"secondary"}>
+          {row.original.duration > 0 ? (
+            <>
+              <ClockIcon size={14} className="ml-1" />
+              {sumTimestamps(row.original.duration)}
+            </>
+          ) : (
+            "00:00"
+          )}
+        </Badge>
       ),
     },
     {
@@ -630,10 +657,10 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
           "hh:mm:ss A"
         );
         return (
-          <div className="flex items-center gap-1 justify-center w-28 text-xs font-semibold text-[#46474b] bg-[#f2f0fc] border border-[#46474b] rounded px-1 py-0.5">
+          <Badge variant={"secondary"}>
             <CalendarIcon size={14} />
             <span>{date}</span>
-          </div>
+          </Badge>
         );
       },
     },
@@ -643,10 +670,10 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       cell: ({ row }) => {
         const date = moment(row.original.createdOn).format("DD MMM YYYY");
         return (
-          <div className="flex items-center gap-1 justify-center w-28 text-xs font-semibold text-[#46474b] bg-[#f2f0fc] border border-[#46474b] rounded px-1 py-0.5">
+          <Badge variant={"secondary"}>
             <CalendarIcon size={14} />
             <span>{date}</span>
-          </div>
+          </Badge>
         );
       },
     },
@@ -656,22 +683,16 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       cell: ({ row }) => {
         const color = getRandomAvatarColor();
         return (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center justify-center">
-                <Avatar className="w-6 h-6 text-xs flex items-center justify-center">
-                  <AvatarFallback
-                    className={`${color.bg} ${color.text} font-semibold`}
-                  >
-                    {row.original.createdBy.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{row.original.createdBy}</p>
-            </TooltipContent>
-          </Tooltip>
+          <div className="flex items-center justify-center">
+            <Avatar className="w-6 h-6 text-xs flex items-center justify-center mr-2">
+              <AvatarFallback
+                className={`${color.bg} ${color.text} font-semibold`}
+              >
+                {row.original.createdBy.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <p className="text-xs">{row.original.createdBy}</p>
+          </div>
         );
       },
     },
@@ -679,23 +700,20 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
-        const statusColor = {
-          "IN PROGRESS": "bg-[#cfe3fc] text-[#1d4ed8]",
-          DONE: "bg-[#d6f5d6] text-[#1f7d1f]",
-          "TO DO": "bg-[#ffe6b3] text-[#b35900]",
-        };
         return (
-          <span
-            className={`w-28 text-center text-xs font-semibold rounded px-1 py-0.5 ${
-              row.original.verifiedStatus === "PENDING"
-                ? "bg-[#cfe3fc] text-[#1d4ed8]"
-                : row.original.verifiedStatus === "APPROVED"
-                ? "bg-[#d6f5d6] text-[#1f7d1f]"
-                : "bg-[#ffe6b3] text-[#b35900]"
-            } text-[#29444f] bg-[#b3df72]`}
+          <Badge
+            variant="secondary"
+            className={`${
+              row.original.verifiedStates === "APPROVED"
+                ? "bg-blue-500 dark:bg-blue-600"
+                : "bg-orange-500 dark:bg-orange-600"
+            }  text-xs text-white`}
           >
-            {row.original.verifiedStatus}
-          </span>
+            <BadgeCheckIcon size={14} />
+            {row.original.verifiedStatus === "APPROVED"
+              ? "APPROVED"
+              : "PENDING"}
+          </Badge>
         );
       },
     },
@@ -703,15 +721,15 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       accessorKey: "verified_on",
       header: "Verified On",
       cell: ({ row }) => {
-        return row.original.verifiedOn ? (
-          <div className="flex items-center gap-1 justify-center w-28 text-xs font-semibold text-[#46474b] bg-[#f2f0fc] border border-[#46474b] rounded px-1 py-0.5">
+        return (
+          <Badge className="bg-[#fdd0df] text-[#c20e4d]">
             <CalendarIcon size={14} />
-            <span>{moment(row.original.verifiedOn).format("DD MMM YYYY")}</span>
-          </div>
-        ) : (
-          <span className="text-xs font-semibold text-[#46474b] bg-[#f2f0fc] border border-[#46474b] rounded px-1 py-0.5">
-            Not Verified
-          </span>
+            <span>
+              {row.original.verifiedOn
+                ? moment(row.original.verifiedOn).format("DD MMM YYYY")
+                : "Not Verified"}
+            </span>
+          </Badge>
         );
       },
     },
@@ -723,17 +741,20 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         return (
           <div className="flex items-center justify-center">
             {row.original.verifiedBy ? (
-              <Avatar className="w-6 h-6 text-xs flex items-center justify-center">
-                <AvatarFallback
-                  className={`${color.bg} ${color.text} font-semibold`}
-                >
-                  {row.original.verifiedBy.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <div className="flex items-center gap-2">
+                <Avatar className="w-6 h-6 text-xs flex items-center justify-center">
+                  <AvatarFallback
+                    className={`${color.bg} ${color.text} font-semibold`}
+                  >
+                    {row.original.verifiedBy.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <p className="text-xs">{row.original.verifiedBy}</p>
+              </div>
             ) : (
-              <span className="text-xs font-semibold text-[#46474b] bg-[#f2f0fc] border border-[#46474b] rounded px-1 py-0.5">
-                Not Verified
-              </span>
+              <Badge className="bg-[#fdd0df] text-[#c20e4d]">
+                <XIcon size={14} /> Not Verified
+              </Badge>
             )}
           </div>
         );
@@ -745,7 +766,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
     <div className="container py-6 max-w-[1050px] mx-auto">
       <div className="mb-4 w-full flex justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2">
+          <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2 bg-[#f4f4f5]">
             <SearchIcon size={16} />
             <Input
               type="search"
@@ -776,7 +797,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[100px] justify-between font-normal text-xs h-8 p-1"
+                className="w-[100px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
               >
                 <span className="truncate flex-1 text-left">
                   {selectedState || "State"}
@@ -811,7 +832,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[100px] justify-between font-normal text-xs h-8 p-1"
+                className="w-[100px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
               >
                 <span className="truncate flex-1 text-left">
                   {selectedDistrict || "District"}
@@ -848,7 +869,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[100px] justify-between font-normal text-xs h-8 p-1"
+                className="w-[100px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
               >
                 <span className="truncate flex-1 text-left">
                   {selectedBlock || "Block"}
@@ -883,7 +904,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[100px] justify-between font-normal text-xs h-8 p-1"
+                className="w-[100px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
               >
                 <span className="truncate flex-1 text-left">
                   {selectedDateFilter === "Mobile_Video_Capture_Time"
@@ -933,11 +954,12 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       </div>
       <DataTable columns={columns} data={data} isFetching={isFetching} />
       <p className="text-sm text-gray-500 mt-1 text-center">
-        {data && data[0].count} results found
+        {data && data.length > 0 ? data[0].count : 0} results found
       </p>
-      <div className="flex items-center space-x-2 py-4 mt-4">
+      <div className="flex items-center justify-center py-4 mt-4">
         <Pagination>
-          <PaginationContent>
+          <PaginationContent className="gap-1">
+            {/* Previous */}
             <PaginationItem>
               <PaginationPrevious
                 href="#"
@@ -945,18 +967,26 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
                   e.preventDefault();
                   setPage((prev) => Math.max(prev - 1, 1));
                 }}
+                className="cursor-pointer"
               />
             </PaginationItem>
 
+            {/* Page Numbers */}
             {getPageNumbers().map((num, idx) => (
               <PaginationItem key={idx}>
                 {num === "..." ? (
                   <PaginationEllipsis />
                 ) : (
                   <PaginationLink
-                    isActive={num === page}
                     href="#"
                     onClick={(e) => handlePageClick(e, num)}
+                    isActive={num === page}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-300
+                ${
+                  num === page
+                    ? "bg-purple-600 text-white shadow-md scale-105"
+                    : "text-gray-800 hover:bg-gray-100 hover:scale-105"
+                }`}
                   >
                     {num}
                   </PaginationLink>
@@ -964,6 +994,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
               </PaginationItem>
             ))}
 
+            {/* Next */}
             <PaginationItem>
               <PaginationNext
                 href="#"
@@ -971,6 +1002,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
                   e.preventDefault();
                   setPage((prev) => Math.min(prev + 1, 10000));
                 }}
+                className="cursor-pointer"
               />
             </PaginationItem>
           </PaginationContent>
