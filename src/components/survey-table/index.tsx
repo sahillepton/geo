@@ -4,10 +4,8 @@ import { DataTable } from "./data-table";
 import {
   getBlocks,
   getDistricts,
-  getStateBlocksAndDistricts,
   getStates,
   getVideoList,
-  getVideoList2,
 } from "../sidebar/action";
 import {
   keepPreviousData,
@@ -15,7 +13,6 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
-import Papa from "papaparse";
 import {
   BadgeCheckIcon,
   CalendarIcon,
@@ -41,7 +38,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { Input } from "../ui/input";
 import {
   Command,
@@ -67,8 +63,7 @@ import { Label } from "../ui/label";
 import { User } from "@/lib/types";
 import { toast } from "sonner";
 import { useSurveyStore } from "@/lib/store";
-import DownloadSurvey from "./download-survey";
-import EditRouteName from "./edit-route-name";
+
 import {
   getStateDistrictFromBlockName,
   getStateFromDistrictName,
