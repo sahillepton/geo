@@ -497,7 +497,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
               </div>
               <div className="space-y-1">
                 <Link
-                  href={`/survey/${row.original.surveyId}`}
+                  href={`/video/${row.original.surveyId}`}
                   className="text-sm font-semibold hover:underline"
                 >
                   {row.original.routeName}
