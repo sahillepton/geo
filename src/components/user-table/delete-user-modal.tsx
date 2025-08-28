@@ -21,12 +21,14 @@ const DeleteUserModal = ({ deletingUser }: { deletingUser: any }) => {
           <TrashIcon size={16} className="text-red-600" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md dark:bg-[#11181c]">
         <DialogHeader>
-          <DialogTitle>Delete User</DialogTitle>
+          <DialogTitle className="text-gray-800 dark:text-white">
+            Delete User
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-white">
             Are you sure you want to delete user{" "}
             <strong>{deletingUser?.username}</strong>? This action cannot be
             undone.

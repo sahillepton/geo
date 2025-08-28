@@ -49,9 +49,9 @@ const AddUserModal = ({
           Add User
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg rounded-lg shadow-lg p-6 bg-white">
+      <DialogContent className="max-w-lg rounded-lg shadow-lg p-6 bg-white dark:bg-[#11181c]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-gray-800">
+          <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-white">
             Add New User
           </DialogTitle>
         </DialogHeader>
@@ -62,7 +62,7 @@ const AddUserModal = ({
             <div className="flex flex-col">
               <Label
                 htmlFor="username"
-                className="mb-1 text-gray-700 font-medium"
+                className="mb-1 text-gray-700 font-medium dark:text-white"
               >
                 Username
               </Label>
@@ -79,7 +79,10 @@ const AddUserModal = ({
 
             {/* Email */}
             <div className="flex flex-col">
-              <Label htmlFor="email" className="mb-1 text-gray-700 font-medium">
+              <Label
+                htmlFor="email"
+                className="mb-1 text-gray-700 font-medium dark:text-white"
+              >
                 Email
               </Label>
               <Input
@@ -98,7 +101,7 @@ const AddUserModal = ({
             <div className="flex flex-col">
               <Label
                 htmlFor="password"
-                className="mb-1 text-gray-700 font-medium"
+                className="mb-1 text-gray-700 font-medium dark:text-white"
               >
                 Password
               </Label>
@@ -119,7 +122,7 @@ const AddUserModal = ({
               <div className="flex flex-col">
                 <Label
                   htmlFor="role"
-                  className="mb-1 text-gray-700 font-medium"
+                  className="mb-1 text-gray-700 font-medium dark:text-white"
                 >
                   Role
                 </Label>
@@ -147,7 +150,7 @@ const AddUserModal = ({
                 <div className="flex flex-col">
                   <Label
                     htmlFor="manager"
-                    className="mb-1 text-gray-700 font-medium"
+                    className="mb-1 text-gray-700 font-medium dark:text-white"
                   >
                     Manager
                   </Label>
@@ -179,7 +182,7 @@ const AddUserModal = ({
             <div className="flex flex-col">
               <Label
                 htmlFor="location"
-                className="mb-1 text-gray-700 font-medium"
+                className="mb-1 text-gray-700 font-medium dark:text-white"
               >
                 Location
               </Label>

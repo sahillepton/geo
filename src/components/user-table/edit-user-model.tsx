@@ -50,9 +50,9 @@ const EditUserModel = ({
           <PencilIcon size={16} className="text-gray-600" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg rounded-lg shadow-lg p-6 bg-white">
+      <DialogContent className="max-w-lg rounded-lg shadow-lg p-6 bg-white dark:bg-[#11181c]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-gray-800">
+          <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-white">
             Edit User
           </DialogTitle>
         </DialogHeader>
@@ -66,7 +66,7 @@ const EditUserModel = ({
             <div className="flex flex-col">
               <Label
                 htmlFor="edit-username"
-                className="mb-1 text-gray-700 font-medium"
+                className="mb-1 text-gray-700 font-medium dark:text-white"
               >
                 Username
               </Label>
@@ -86,7 +86,7 @@ const EditUserModel = ({
             <div className="flex flex-col">
               <Label
                 htmlFor="edit-email"
-                className="mb-1 text-gray-700 font-medium"
+                className="mb-1 text-gray-700 font-medium dark:text-white"
               >
                 Email
               </Label>
@@ -107,7 +107,7 @@ const EditUserModel = ({
             <div className="flex flex-col">
               <Label
                 htmlFor="edit-password"
-                className="mb-1 text-gray-700 font-medium"
+                className="mb-1 text-gray-700 font-medium dark:text-white"
               >
                 Password{" "}
                 <span className="text-sm text-gray-500">
@@ -132,7 +132,7 @@ const EditUserModel = ({
                 <div className="flex flex-col">
                   <Label
                     htmlFor="edit-role"
-                    className="mb-1 text-gray-700 font-medium"
+                    className="mb-1 text-gray-700 font-medium dark:text-white"
                   >
                     Role
                   </Label>
@@ -155,7 +155,7 @@ const EditUserModel = ({
                 <div className="flex flex-col">
                   <Label
                     htmlFor="edit-manager"
-                    className="mb-1 text-gray-700 font-medium"
+                    className="mb-1 text-gray-700 font-medium dark:text-white"
                   >
                     Manager
                   </Label>
@@ -194,7 +194,7 @@ const EditUserModel = ({
             <div className="flex flex-col">
               <Label
                 htmlFor="edit-location"
-                className="mb-1 text-gray-700 font-medium"
+                className="mb-1 text-gray-700 font-medium dark:text-white"
               >
                 Location
               </Label>

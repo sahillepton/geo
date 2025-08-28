@@ -1,17 +1,11 @@
-//@ts-nocheck
+// @ts-nocheck
 "use client";
 
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender } from "@tanstack/react-table";
 
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -21,40 +15,33 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
+interface DataTableProps {
+  columns: any;
+  data: any;
   isFetching: boolean;
+  table: any;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable({
   columns,
   data,
   isFetching,
-}: DataTableProps<TData, TValue>) {
+  table,
+}: DataTableProps) {
   const router = useRouter();
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
-
-  //console.log(table.getRowModel().rows, "rows");
-
-  // Number of skeleton rows to display
   const skeletonRows = 10;
 
   return (
     <div className="overflow-hidden rounded-md border">
       <Table>
-        <TableHeader className="bg-[#f4f4f5] text-[#71717a]">
+        <TableHeader className="bg-[#f4f4f5] text-[#71717a] dark:bg-[#11181c] dark:text-white">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
                 return (
                   <TableHead
                     key={header.id}
-                    className="text-center text-[#71717a]"
+                    className="text-center text-[#71717a] dark:text-white"
                   >
                     {header.isPlaceholder
                       ? null

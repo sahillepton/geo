@@ -7,12 +7,17 @@ import {
   getStates,
   getVideoList,
 } from "../sidebar/action";
+
 import {
   keepPreviousData,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { ColumnDef } from "@tanstack/react-table";
+import {
+  ColumnDef,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import {
   BadgeCheckIcon,
   CalendarIcon,
@@ -22,10 +27,10 @@ import {
   Loader2,
   RouteIcon,
   SearchIcon,
+  Settings2,
   SquarePen,
   XIcon,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import moment from "moment";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Button } from "../ui/button";
@@ -39,29 +44,12 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Input } from "../ui/input";
-import {
-  Command,
-  CommandSeparator,
-  CommandItem,
-  CommandGroup,
-  CommandEmpty,
-  CommandList,
-} from "../ui/command";
+import { Command, CommandItem, CommandEmpty, CommandList } from "../ui/command";
 import { CommandInput } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 import { DateRangePicker } from "../sidebar/date-range-picker";
-import { supabase } from "@/lib/supabase";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "../ui/dialog";
-import { Label } from "../ui/label";
 import { User } from "@/lib/types";
-import { toast } from "sonner";
 import { useSurveyStore } from "@/lib/store";
 
 import {
@@ -76,6 +64,15 @@ import {
   HoverCardTrigger,
 } from "../ui/hover-card";
 import Link from "next/link";
+import { useSidebar } from "../ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from "../ui/dropdown-menu";
 
 // Define some color pairs
 const avatarColors = [
@@ -95,7 +92,6 @@ const getRandomAvatarColor = () => {
 
 export default function SurveyTable({ currentUser }: { currentUser: User }) {
   const [page, setPage] = useState(1);
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedState, setSelectedState] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("");
@@ -105,6 +101,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const { setSurveys, setLoading } = useSurveyStore();
+  const { open } = useSidebar();
 
   // Load all filters from localStorage on component mount
   useEffect(() => {
@@ -528,7 +525,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.entityName}
-            className="w-20 text-center text-xs font-semibold  truncate rounded pl-1 pr-1 text-[#11181c]"
+            className="w-20 text-center text-xs font-semibold  truncate rounded pl-1 pr-1 text-[#11181c] dark:text-white"
           >
             {row.original.entityName.length > 20
               ? row.original.entityName.slice(0, 20) + "..."
@@ -544,7 +541,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.state}
-            className="w-20 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c]"
+            className="w-20 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c] dark:text-white"
           >
             {row.original.state.length > 20
               ? row.original.state.slice(0, 20) + "..."
@@ -560,7 +557,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.district}
-            className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c]"
+            className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c] dark:text-white"
           >
             {row.original.district.length > 20
               ? row.original.district.slice(0, 20) + "..."
@@ -576,7 +573,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.block}
-            className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c]"
+            className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c] dark:text-white"
           >
             {row.original.block.length > 20
               ? row.original.block.slice(0, 20) + "..."
@@ -590,7 +587,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "Ring",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c]">
+          <span className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c] dark:text-white">
             {row.original.ring.length > 20
               ? row.original.ring.slice(0, 20) + "..."
               : row.original.ring}
@@ -603,7 +600,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
       header: "Child Ring",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c]">
+          <span className="w-20 text-center text-xs font-semibold  truncate  rounded px-1 py-0.5 text-[#11181c] dark:text-white">
             {row.original.childRing.length > 20
               ? row.original.childRing.slice(0, 20) + "..."
               : row.original.childRing}
@@ -765,11 +762,21 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
     },
   ];
 
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
   return (
-    <div className="container py-6 max-w-[1050px] mx-auto">
+    <div
+      className={`container py-6 ${
+        open ? "max-w-[1050px]" : "max-w-[1300px]"
+      }  mx-auto transition-all duration-300`}
+    >
       <div className="mb-4 w-full flex justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2 bg-[#f4f4f5]">
+          <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2 bg-[#f4f4f5] dark:bg-[#11181c]">
             <SearchIcon size={16} />
             <Input
               type="search"
@@ -796,11 +803,49 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
         </div>
 
         <div className="flex items-center gap-2 h-8">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-[80px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white "
+              >
+                <Settings2 />
+                View
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[150px]">
+              <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {table
+                .getAllColumns()
+                .filter(
+                  (column) =>
+                    typeof column.accessorFn !== "undefined" &&
+                    column.getCanHide()
+                )
+                .map((column) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) =>
+                        column.toggleVisibility(!!value)
+                      }
+                    >
+                      {column.id}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[100px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
+                className="w-[80px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
               >
                 <span className="truncate flex-1 text-left">
                   {selectedState || "State"}
@@ -835,7 +880,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[100px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
+                className="w-[80px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
               >
                 <span className="truncate flex-1 text-left">
                   {selectedDistrict || "District"}
@@ -872,7 +917,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[100px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
+                className="w-[80px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
               >
                 <span className="truncate flex-1 text-left">
                   {selectedBlock || "Block"}
@@ -907,7 +952,7 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-[100px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
+                className="w-[80px] justify-between font-normal text-xs h-8 p-1 bg-[#006fee] text-white rounded-lg border-none hover:bg-[#006fee]/80 hover:text-white"
               >
                 <span className="truncate flex-1 text-left">
                   {selectedDateFilter === "Mobile_Video_Capture_Time"
@@ -955,7 +1000,12 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
           />
         </div>
       </div>
-      <DataTable columns={columns} data={data} isFetching={isFetching} />
+      <DataTable
+        columns={columns}
+        data={data}
+        isFetching={isFetching}
+        table={table}
+      />
       <p className="text-sm text-gray-500 mt-1 text-center">
         {data && data.length > 0 ? data[0].count : 0} results found
       </p>

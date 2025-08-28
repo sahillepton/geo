@@ -32,7 +32,7 @@ const Page = async () => {
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <div className="px-4">
-        <h1 className="text-4xl font-extrabold tracking-tight text-balance text-[#262626]">
+        <h1 className="text-4xl font-extrabold tracking-tight text-balance text-[#262626] dark:text-white">
           Geotagged Videos
         </h1>
         <Suspense

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, LogOut } from "lucide-react";
+import { ChevronsUpDown, LogOut, Monitor, Moon, SunMoon } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -19,10 +19,11 @@ import {
 } from "@/components/ui/sidebar";
 import { User } from "@/lib/types";
 import { logout } from "./action";
+import { useTheme } from "next-themes";
 
 export function NavUser({ user }: { user: User }) {
   const { isMobile } = useSidebar();
-
+  const { setTheme } = useTheme();
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -72,6 +73,18 @@ export function NavUser({ user }: { user: User }) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setTheme("light")}>
+              <SunMoon />
+              Light Mode
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("dark")}>
+              <Moon />
+              Dark Mode
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("system")}>
+              <Monitor />
+              System
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={async () => {
                 await logout();

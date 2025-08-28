@@ -219,7 +219,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.username}
-            className="w-20 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c]"
+            className="w-20 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c] dark:text-white"
           >
             {row.original.username?.length > 20
               ? row.original.username.slice(0, 20) + "..."
@@ -235,7 +235,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
         <div className="flex items-center justify-center">
           <span
             title={row.original.email}
-            className="w-32 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c]"
+            className="w-32 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c] dark:text-white"
           >
             {row.original.email?.length > 25
               ? row.original.email.slice(0, 25) + "..."
@@ -249,7 +249,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
       header: "Role",
       cell: ({ row }) => (
         <div className="flex items-center justify-center">
-          <span className="w-20 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c]">
+          <span className="w-20 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c] dark:text-white">
             {row.original.role}
           </span>
         </div>
@@ -295,7 +295,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
     <div className="container py-6 max-w-[1050px] mx-auto">
       <div className="mb-4 w-full flex justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2 bg-[#f4f4f5]">
+          <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2 bg-[#f4f4f5] dark:bg-[#11181c]">
             <SearchIcon size={16} />
             <Input
               type="search"

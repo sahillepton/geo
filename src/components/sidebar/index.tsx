@@ -41,6 +41,7 @@ import {
 } from "../ui/collapsible";
 import Link from "next/link";
 import { Skeleton } from "../ui/skeleton";
+import { useTheme } from "next-themes";
 
 const data = {
   user: {
@@ -176,7 +177,6 @@ export function AppSidebar({
   const breadcrumbItems = pathname.split("/").filter((item) => item !== "");
   const surveyId = breadcrumbItems.length > 1 ? breadcrumbItems[1] : null;
   const { surveys, loading } = useSurveyStore();
-  //  console.log(surveys, "surveys zustand");
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>
