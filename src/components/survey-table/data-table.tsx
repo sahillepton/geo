@@ -18,6 +18,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -30,11 +32,14 @@ export function DataTable<TData, TValue>({
   data,
   isFetching,
 }: DataTableProps<TData, TValue>) {
+  const router = useRouter();
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  //console.log(table.getRowModel().rows, "rows");
 
   // Number of skeleton rows to display
   const skeletonRows = 10;
@@ -80,6 +85,10 @@ export function DataTable<TData, TValue>({
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
                 className={`cursor-pointer`}
+                onClick={() => {
+                  router.push(`/video/${row.original.surveyId}`);
+                  toast.success("Redirecting to video player");
+                }}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>

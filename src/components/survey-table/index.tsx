@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { DataTable } from "./data-table";
 import {
   getBlocks,
@@ -237,26 +237,20 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
 
   // Clear all filters and localStorage
   const handleClearAllFilters = () => {
-    setSelectedState("");
-    setSelectedDistrict("");
-    setSelectedBlock("");
-    setSearch("");
-    setSelectedDateFilter("");
-    setDateFrom(undefined);
-    setDateTo(undefined);
-    setPage(1);
+    // Batch all filter clearing operations
+    React.startTransition(() => {
+      setSelectedState("");
+      setSelectedDistrict("");
+      setSelectedBlock("");
+      setSearch("");
+      setSelectedDateFilter("");
+      setDateFrom(undefined);
+      setDateTo(undefined);
+      setPage(1);
+    });
 
     // Clear localStorage
     clearAllFiltersFromStorage();
-
-    // Refetch data with cleared filters
-    queryClient.prefetchQuery({
-      queryKey: ["videos", 1, {}],
-      queryFn: async () => {
-        const data = await getVideoList({}, 1, 10);
-        return JSON.parse(data.data).Result;
-      },
-    });
   };
 
   const getFilters = () => {
@@ -333,44 +327,58 @@ export default function SurveyTable({ currentUser }: { currentUser: User }) {
   });
 
   const handleStateChange = (value: string) => {
-    setSelectedState(value);
+    // Use React's automatic batching by wrapping in a function
+    React.startTransition(() => {
+      setSelectedState(value);
+      // Clear dependent filters when state changes
+      setSelectedDistrict("");
+      setSelectedBlock("");
+    });
   };
+
   const handleDistrictChange = async (value: string) => {
     const state = await getStateFromDistrictName(value);
     //  console.log(state, "state");
-    setSelectedState(state.st_name);
-    setSelectedDistrict(value);
+
+    // Batch all state updates together
+    React.startTransition(() => {
+      setSelectedState(state.st_name);
+      setSelectedDistrict(value);
+      // Clear dependent filter when district changes
+      setSelectedBlock("");
+    });
   };
+
   const handleBlockChange = async (value: string) => {
     const stateDistrict = await getStateDistrictFromBlockName(value);
     //  console.log(stateDistrict, "stateDistrict");
-    setSelectedState(stateDistrict.st_name);
-    setSelectedDistrict(stateDistrict.dt_name);
 
-    setSelectedBlock(value);
+    // Batch all state updates together
+    React.startTransition(() => {
+      setSelectedState(stateDistrict.st_name);
+      setSelectedDistrict(stateDistrict.dt_name);
+      setSelectedBlock(value);
+    });
   };
 
   const handleDateFilterChange = (value: string) => {
-    setSelectedDateFilter(value);
-    // Reset date ranges when date filter field changes
-    setDateFrom(undefined);
-    setDateTo(undefined);
-
-    // Reset to page 1 and refetch data with existing filters (excluding date filters)
-    setPage(1);
-    const currentFilters = getFilters(); // This will include search, state, district, block but not date filters
-    queryClient.prefetchQuery({
-      queryKey: ["videos", 1, currentFilters],
-      queryFn: async () => {
-        const data = await getVideoList(currentFilters, 1, 10);
-        return JSON.parse(data.data).Result;
-      },
+    // Batch all date-related state updates
+    React.startTransition(() => {
+      setSelectedDateFilter(value);
+      // Reset date ranges when date filter field changes
+      setDateFrom(undefined);
+      setDateTo(undefined);
+      // Reset to page 1
+      setPage(1);
     });
   };
 
   const handleDateRangeChange = (range: { from?: Date; to?: Date }) => {
-    setDateFrom(range.from);
-    setDateTo(range.to);
+    // Batch date range updates
+    React.startTransition(() => {
+      setDateFrom(range.from);
+      setDateTo(range.to);
+    });
   };
 
   const getPageNumbers = () => {

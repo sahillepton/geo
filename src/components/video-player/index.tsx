@@ -6,8 +6,12 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import Hls from "hls.js";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+// Google Maps will be loaded via window.google
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 import { Progress } from "@/components/ui/progress";
 
 import {
@@ -18,6 +22,8 @@ import {
   Volume1,
   Settings,
   Loader2,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 import {
   Card,
@@ -28,6 +34,12 @@ import {
   CardAction,
   CardFooter,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Collapsible,
   CollapsibleContent,
@@ -164,6 +176,10 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
   const [qualities, setQualities] = useState([]);
   const [selectedQuality, setSelectedQuality] = useState("Auto");
   const [isBuffering, setIsBuffering] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  const containerRef = useRef(null);
+  const hideControlsTimeoutRef = useRef(null);
 
   // Initialize video
   useEffect(() => {
@@ -171,9 +187,9 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
 
     const videoEl = document.createElement("video");
     videoEl.crossOrigin = "anonymous";
-    //videoEl.playsInline = true;
+    videoEl.playsInline = true;
     videoEl.volume = volume;
-    videoEl.muted = isMuted;
+    videoEl.muted = false; // Ensure video starts unmuted
 
     if (Hls.isSupported()) {
       const hls = new Hls({ autoStartLoad: true });
@@ -199,10 +215,7 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
       if (initialTimestamp > 0) {
         videoEl.currentTime = initialTimestamp;
       }
-    });
-
-    videoEl.addEventListener("canplay", () => {
-      if (!videoEl.paused) return; // Don't restart if already playing
+      // Auto-play when metadata is loaded
       videoEl.play().catch(console.warn);
     });
 
@@ -211,16 +224,77 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
 
   const togglePlay = () => {
     if (!video) return;
-    if (isPlaying) video.pause();
-    else video.play().catch(console.warn);
-    setIsPlaying(!isPlaying);
+    // Use the actual video element's paused state instead of React state
+    if (video.paused) {
+      video.play().catch(console.warn);
+    } else {
+      // Robust pause implementation
+      video.pause();
+
+      // If using HLS, also pause the HLS instance
+      if (video.hls && typeof video.hls.stopLoad === "function") {
+        video.hls.stopLoad();
+        setTimeout(() => {
+          if (video.hls && typeof video.hls.startLoad === "function") {
+            video.hls.startLoad();
+          }
+        }, 100);
+      }
+
+      // Force ensure the video is actually paused
+      setTimeout(() => {
+        if (!video.paused) {
+          console.warn(
+            "Video still playing after pause command, forcing pause"
+          );
+          video.pause();
+          // Also try setting currentTime to force a stop
+          const currentTime = video.currentTime;
+          video.currentTime = currentTime;
+        }
+      }, 50);
+    }
   };
 
-  // Add keyboard event listener for spacebar
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+
+    if (!isFullscreen) {
+      // Enter fullscreen
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen();
+      } else if (containerRef.current.webkitRequestFullscreen) {
+        containerRef.current.webkitRequestFullscreen();
+      } else if (containerRef.current.mozRequestFullScreen) {
+        containerRef.current.mozRequestFullScreen();
+      } else if (containerRef.current.msRequestFullscreen) {
+        containerRef.current.msRequestFullscreen();
+      }
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    }
+  };
+
+  // Add keyboard event listeners
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (e.code === "Space" && video) {
         e.preventDefault(); // Prevent page scroll
+        togglePlay();
+      } else if (e.code === "KeyF" && video) {
+        e.preventDefault(); // Prevent browser's default fullscreen
+        toggleFullscreen();
+      } else if (e.code === "KeyK" && video) {
+        e.preventDefault(); // K key also toggles play/pause (YouTube style)
         togglePlay();
       }
     };
@@ -229,7 +303,88 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
     return () => {
       document.removeEventListener("keydown", handleKeyPress);
     };
-  }, [video, isPlaying]);
+  }, [video, togglePlay, toggleFullscreen]);
+
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      setIsFullscreen(isCurrentlyFullscreen);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener(
+        "webkitfullscreenchange",
+        handleFullscreenChange
+      );
+      document.removeEventListener(
+        "mozfullscreenchange",
+        handleFullscreenChange
+      );
+      document.removeEventListener(
+        "MSFullscreenChange",
+        handleFullscreenChange
+      );
+    };
+  }, []);
+
+  // Handle mouse movement and show/hide controls
+  const handleMouseMove = () => {
+    setShowControls(true);
+
+    // Clear existing timeout
+    if (hideControlsTimeoutRef.current) {
+      clearTimeout(hideControlsTimeoutRef.current);
+    }
+
+    // Set new timeout to hide controls after 3 seconds of inactivity
+    hideControlsTimeoutRef.current = setTimeout(() => {
+      if (!isPlaying) return; // Keep controls visible when paused
+      setShowControls(false);
+    }, 3000);
+  };
+
+  const handleMouseEnter = () => {
+    setShowControls(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (!isPlaying) return; // Keep controls visible when paused
+    setShowControls(false);
+    if (hideControlsTimeoutRef.current) {
+      clearTimeout(hideControlsTimeoutRef.current);
+    }
+  };
+
+  // Show controls when video is paused
+  useEffect(() => {
+    if (!isPlaying) {
+      setShowControls(true);
+      if (hideControlsTimeoutRef.current) {
+        clearTimeout(hideControlsTimeoutRef.current);
+      }
+    }
+  }, [isPlaying]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hideControlsTimeoutRef.current) {
+        clearTimeout(hideControlsTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const toggleMute = () => {
     if (!video) return;
@@ -250,6 +405,7 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
 
   useEffect(() => {
     if (!video) return;
+
     const updateTime = () => {
       setCurrentTime(video.currentTime);
       setDuration(video.duration || 0);
@@ -257,13 +413,45 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
         video.duration ? (video.currentTime / video.duration) * 100 : 0
       );
     };
+
+    const handlePlay = () => {
+      setIsPlaying(true);
+      setIsBuffering(false);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+      // Double-check that video is actually paused
+      if (!video.paused) {
+        console.warn("Video pause event fired but video is still playing");
+        video.pause();
+      }
+    };
+
+    const handleWaiting = () => {
+      setIsBuffering(true);
+    };
+
+    const handleCanPlay = () => {
+      setIsBuffering(false);
+    };
+
     video.addEventListener("timeupdate", updateTime);
     video.addEventListener("loadedmetadata", updateTime);
-    video.addEventListener("waiting", () => setIsBuffering(true));
-    video.addEventListener("canplay", () => setIsBuffering(false));
-    video.addEventListener("canplaythrough", () => setIsBuffering(false));
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("waiting", handleWaiting);
+    video.addEventListener("canplay", handleCanPlay);
+    video.addEventListener("canplaythrough", handleCanPlay);
+
     return () => {
       video.removeEventListener("timeupdate", updateTime);
+      video.removeEventListener("loadedmetadata", updateTime);
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("waiting", handleWaiting);
+      video.removeEventListener("canplay", handleCanPlay);
+      video.removeEventListener("canplaythrough", handleCanPlay);
     };
   }, [video]);
 
@@ -279,20 +467,28 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
 
   return (
     <div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       style={{
         width: "100%",
         height: "100%",
         position: "relative",
         background: "#111",
+        cursor: showControls ? "default" : "none",
       }}
     >
-      <Canvas camera={{ position: [0, 0, 0.1], fov: 75 }}>
-        <OrbitControls enableZoom={false} enablePan={false} />
-        <Suspense fallback={null}>
-          {video && <VideoSphere video={video} />}
-        </Suspense>
-      </Canvas>
+      <div onClick={togglePlay} style={{ width: "100%", height: "100%" }}>
+        <Canvas camera={{ position: [0, 0, 0.1], fov: 75 }}>
+          <OrbitControls enableZoom={false} enablePan={false} />
+          <Suspense fallback={null}>
+            {video && <VideoSphere video={video} />}
+          </Suspense>
+        </Canvas>
+      </div>
 
+      {/* <VRButton /> */}
       {isBuffering && (
         <div className="absolute inset-0 flex flex-col justify-center items-center bg-black/70 text-white z-50 gap-3">
           <Loader2 className="w-10 h-10 animate-spin" />
@@ -302,8 +498,25 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
 
       {/* Controls */}
       <div
-        className="absolute bottom-3 left-0 w-full p-3 bg-black/60 backdrop-blur-sm flex flex-col gap-2 z-50"
+        className={`absolute bottom-3 left-0 w-full p-3 bg-black/60 backdrop-blur-sm flex flex-col gap-2 z-50 transition-all duration-300 ${
+          showControls
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
         onClick={(e) => e.stopPropagation()}
+        onMouseEnter={() => {
+          setShowControls(true);
+          if (hideControlsTimeoutRef.current) {
+            clearTimeout(hideControlsTimeoutRef.current);
+          }
+        }}
+        onMouseLeave={() => {
+          if (isPlaying) {
+            hideControlsTimeoutRef.current = setTimeout(() => {
+              setShowControls(false);
+            }, 1000); // Shorter timeout when leaving controls area
+          }
+        }}
       >
         <ProgressBar value={progress} onChange={handleSeek} />
 
@@ -331,25 +544,34 @@ const VideoPlayer = ({ url, video, setVideo, initialTimestamp = 1 }) => {
             </span>
           </div>
 
-          {qualities.length > 0 && (
-            <select
-              value={selectedQuality}
-              onChange={(e) => {
-                const idx = qualities.findIndex(
-                  (q) => q.label === e.target.value
-                );
-                if (video?.hls) video.hls.currentLevel = qualities[idx].index;
-                setSelectedQuality(e.target.value);
-              }}
-              className="bg-gray-900 text-white text-xs px-2 py-1 rounded border border-gray-600"
+          <div className="flex items-center gap-2">
+            {qualities.length > 0 && (
+              <select
+                value={selectedQuality}
+                onChange={(e) => {
+                  const idx = qualities.findIndex(
+                    (q) => q.label === e.target.value
+                  );
+                  if (video?.hls) video.hls.currentLevel = qualities[idx].index;
+                  setSelectedQuality(e.target.value);
+                }}
+                className="bg-gray-900 text-white text-xs px-2 py-1 rounded border border-gray-600"
+              >
+                {qualities.map((q) => (
+                  <option key={q.label} value={q.label}>
+                    {q.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 rounded-full hover:bg-white/20 transition"
+              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
-              {qualities.map((q) => (
-                <option key={q.label} value={q.label}>
-                  {q.label}
-                </option>
-              ))}
-            </select>
-          )}
+              {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -366,6 +588,41 @@ const SimpleMap = ({
   // Check if we're on the client side
   if (typeof window === "undefined") {
     return <div>Loading map...</div>;
+  }
+
+  // Check if Google Maps is available
+  if (!window.google) {
+    return (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#f0f0f0",
+          padding: "20px",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{ marginBottom: "10px", fontSize: "16px", fontWeight: "500" }}
+        >
+          Google Maps not loaded
+        </div>
+        <div style={{ fontSize: "14px", color: "#666", maxWidth: "400px" }}>
+          Please add your Google Maps API key to the environment variables.
+          <br />
+          <br />
+          1. Get an API key from Google Cloud Console
+          <br />
+          2. Enable Maps JavaScript API and Geometry Library
+          <br />
+          3. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your .env.local file
+        </div>
+      </div>
+    );
   }
 
   // Show loading state if no data
@@ -385,17 +642,21 @@ const SimpleMap = ({
       </div>
     );
   }
+
   const mapRef = useRef<HTMLDivElement>(null);
-  const movingMarkerRef = useRef<L.Marker | null>(null);
-  const startMarkerRef = useRef<L.Marker | null>(null);
-  const endMarkerRef = useRef<L.Marker | null>(null);
-  const polylineRef = useRef<L.Polyline | null>(null);
-  const accuracyCircleRef = useRef<L.Circle | null>(null);
-  const [map, setMap] = useState<L.Map | null>(null);
+  const movingMarkerRef = useRef<any>(null);
+  const startMarkerRef = useRef<any>(null);
+  const endMarkerRef = useRef<any>(null);
+  const coveredPolylineRef = useRef<any>(null);
+  const remainingPolylineRef = useRef<any>(null);
+  const shadowPolylineRef = useRef<any>(null);
+  const [map, setMap] = useState<any>(null);
   const [coords, setCoords] = useState({ lat: 0, lng: 0 });
   const [distance, setDistance] = useState(0);
   const [accuracy, setAccuracy] = useState(0);
   const [timestamp, setTimestamp] = useState(0);
+  const [hoverInfo, setHoverInfo] = useState(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   const calcDistance = (
     lat1: number,
@@ -428,7 +689,7 @@ const SimpleMap = ({
       const lng =
         slice.reduce((sum, p) => sum + parseFloat(p.Longitude), 0) /
         slice.length;
-      return { lat, lng };
+      return new window.google.maps.LatLng(lat, lng);
     });
   };
 
@@ -438,287 +699,243 @@ const SimpleMap = ({
       !mapRef.current ||
       map ||
       !data?.length ||
-      typeof window === "undefined"
+      typeof window === "undefined" ||
+      !window.google
     )
       return;
 
-    //   console.log("Initializing map with data:", data.length, "points");
-
     const firstPoint = data[0];
     const lastPoint = data[data.length - 1];
-
-    // console.log("First point:", firstPoint);
-    //console.log("Last point:", lastPoint);
 
     // Add a small delay to ensure the container is properly rendered
     const timer = setTimeout(() => {
       if (!mapRef.current) return;
 
-      // Create Leaflet map
-      const leafletMap = L.map(mapRef.current, {
+      // Create Google Map
+      const googleMap = new window.google.maps.Map(mapRef.current, {
         zoom: 18,
-        center: [
-          parseFloat(firstPoint.Latitude),
-          parseFloat(firstPoint.Longitude),
-        ],
-        dragging: true,
-        zoomControl: false, // We'll add it manually to control position
+        center: {
+          lat: parseFloat(firstPoint.Latitude),
+          lng: parseFloat(firstPoint.Longitude),
+        },
+        mapTypeId: window.google.maps.MapTypeId.ROADMAP,
+        zoomControl: true,
+        zoomControlOptions: {
+          position: window.google.maps.ControlPosition.BOTTOM_RIGHT,
+        },
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+          style: window.google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+          position: window.google.maps.ControlPosition.TOP_RIGHT,
+        },
+        streetViewControl: false,
+        fullscreenControl: false,
       });
 
-      //  console.log("Map created:", leafletMap);
+      setMap(googleMap);
 
-      // Add OpenStreetMap as default
-      const openStreetMap = L.tileLayer(
-        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        {
-          attribution: "© OpenStreetMap contributors",
-          maxZoom: 19,
-        }
-      );
+      // Create start marker with custom HTML
+      const startMarker = new window.google.maps.Marker({
+        position: {
+          lat: parseFloat(firstPoint.Latitude),
+          lng: parseFloat(firstPoint.Longitude),
+        },
+        map: googleMap,
+        title: "Start Point",
+        icon: {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="startGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+                </linearGradient>
+                <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#10B981" flood-opacity="0.4"/>
+                </filter>
+              </defs>
+              <circle cx="16" cy="16" r="12" fill="url(#startGrad)" stroke="white" stroke-width="4" filter="url(#shadow)"/>
+              <text x="16" y="20" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">S</text>
+            </svg>
+          `)}`,
+          scaledSize: new window.google.maps.Size(32, 32),
+          anchor: new window.google.maps.Point(16, 16),
+        },
+      });
 
-      // Add Google Maps tile layers as alternatives
-      const googleStreets = L.tileLayer(
-        "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
-        {
-          attribution: "© Google Maps",
-          maxZoom: 20,
-        }
-      );
+      startMarkerRef.current = startMarker;
 
-      const googleSatellite = L.tileLayer(
-        "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-        {
-          attribution: "© Google Maps",
-          maxZoom: 20,
-        }
-      );
-
-      const googleHybrid = L.tileLayer(
-        "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
-        {
-          attribution: "© Google Maps",
-          maxZoom: 20,
-        }
-      );
-
-      const googleTerrain = L.tileLayer(
-        "https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}",
-        {
-          attribution: "© Google Maps",
-          maxZoom: 20,
-        }
-      );
-
-      // Add default OpenStreetMap layer
-      openStreetMap.addTo(leafletMap);
-
-      // Layer control
-      const baseMaps = {
-        OpenStreetMap: openStreetMap,
-        "Google Streets": googleStreets,
-        "Google Satellite": googleSatellite,
-        "Google Hybrid": googleHybrid,
-        "Google Terrain": googleTerrain,
-      };
-
-      L.control.layers(baseMaps).addTo(leafletMap);
-
-      setMap(leafletMap);
-
-      // Create start marker with custom icon and label
-      const startIcon = L.divIcon({
-        className: "custom-marker start-marker",
-        html: `
+      // Create start label
+      const startInfoWindow = new window.google.maps.InfoWindow({
+        content: `
           <div style="
-            width: 32px; 
-            height: 32px; 
-            background: linear-gradient(135deg, #10B981, #059669);
-            border: 4px solid #ffffff;
-            border-radius: 50%;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background: rgba(16, 185, 129, 0.9);
             color: white;
-            font-weight: bold;
-            font-size: 14px;
-            position: relative;
-          ">S</div>
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            text-align: center;
+          ">START</div>
         `,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
+        disableAutoPan: true,
+      });
+      startInfoWindow.open(googleMap, startMarker);
+
+      // Create end marker with custom HTML
+      const endMarker = new window.google.maps.Marker({
+        position: {
+          lat: parseFloat(lastPoint.Latitude),
+          lng: parseFloat(lastPoint.Longitude),
+        },
+        map: googleMap,
+        title: "End Point",
+        icon: {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="endGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#EF4444;stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:#DC2626;stop-opacity:1" />
+                </linearGradient>
+                <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#EF4444" flood-opacity="0.4"/>
+                </filter>
+              </defs>
+              <circle cx="16" cy="16" r="12" fill="url(#endGrad)" stroke="white" stroke-width="4" filter="url(#shadow)"/>
+              <text x="16" y="20" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">E</text>
+            </svg>
+          `)}`,
+          scaledSize: new window.google.maps.Size(32, 32),
+          anchor: new window.google.maps.Point(16, 16),
+        },
       });
 
-      startMarkerRef.current = L.marker(
-        [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
-        {
-          icon: startIcon,
-          title: "Start Point",
-        }
-      ).addTo(leafletMap);
+      endMarkerRef.current = endMarker;
 
-      // Add start point label
-      L.marker(
-        [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
-        {
-          icon: L.divIcon({
-            className: "marker-label",
-            html: `
-            <div style="
-              background: rgba(16, 185, 129, 0.9);
-              color: white;
-              padding: 4px 8px;
-              border-radius: 12px;
-              font-size: 11px;
-              font-weight: 600;
-              white-space: nowrap;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-              border: 1px solid rgba(255,255,255,0.3);
-            ">START</div>
-          `,
-            iconSize: [60, 20],
-            iconAnchor: [30, 25],
-          }),
-        }
-      ).addTo(leafletMap);
-
-      // Create end marker with custom icon and label
-      const endIcon = L.divIcon({
-        className: "custom-marker end-marker",
-        html: `
+      // Create end label
+      const endInfoWindow = new window.google.maps.InfoWindow({
+        content: `
           <div style="
-            width: 32px; 
-            height: 32px; 
-            background: linear-gradient(135deg, #EF4444, #DC2626);
-            border: 4px solid #ffffff;
-            border-radius: 50%;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background: rgba(239, 68, 68, 0.9);
             color: white;
-            font-weight: bold;
-            font-size: 14px;
-            position: relative;
-          ">E</div>
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            text-align: center;
+          ">END</div>
         `,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
+        disableAutoPan: true,
+      });
+      endInfoWindow.open(googleMap, endMarker);
+
+      // Create moving marker as a blue circle
+      const movingMarker = new window.google.maps.Marker({
+        position: {
+          lat: parseFloat(firstPoint.Latitude),
+          lng: parseFloat(firstPoint.Longitude),
+        },
+        map: googleMap,
+        icon: {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+            <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="8" cy="8" r="6" fill="#3B82F6" stroke="#3B82F6" stroke-width="2" fill-opacity="0.9"/>
+            </svg>
+          `)}`,
+          scaledSize: new window.google.maps.Size(16, 16),
+          anchor: new window.google.maps.Point(8, 8),
+        },
       });
 
-      endMarkerRef.current = L.marker(
-        [parseFloat(lastPoint.Latitude), parseFloat(lastPoint.Longitude)],
-        {
-          icon: endIcon,
-          title: "End Point",
-        }
-      ).addTo(leafletMap);
-
-      // Add end point label
-      L.marker(
-        [parseFloat(lastPoint.Latitude), parseFloat(lastPoint.Longitude)],
-        {
-          icon: L.divIcon({
-            className: "marker-label",
-            html: `
-            <div style="
-              background: rgba(239, 68, 68, 0.9);
-              color: white;
-              padding: 4px 8px;
-              border-radius: 12px;
-              font-size: 11px;
-              font-weight: 600;
-              white-space: nowrap;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-              border: 1px solid rgba(255,255,255,0.3);
-            ">END</div>
-          `,
-            iconSize: [50, 20],
-            iconAnchor: [25, 25],
-          }),
-        }
-      ).addTo(leafletMap);
-
-      // Create moving marker as a blue circle with shadow and pulse effect
-      movingMarkerRef.current = L.circle(
-        [parseFloat(firstPoint.Latitude), parseFloat(firstPoint.Longitude)],
-        {
-          radius: 2,
-          color: "#3B82F6",
-          fillColor: "#3B82F6",
-          fillOpacity: 0.9,
-          weight: 2,
-        }
-      ).addTo(leafletMap);
-
-      // Add zoom control at bottom right
-      L.control
-        .zoom({
-          position: "bottomright",
-        })
-        .addTo(leafletMap);
+      movingMarkerRef.current = movingMarker;
 
       // Create covered and remaining route polylines
       const smoothedPath = getSmoothedPath(data);
 
-      // Initially, all route is remaining (covered route is empty)
-      const coveredPath = [];
-      const remainingPath = smoothedPath;
+      // Add shadow polyline
+      const shadowPolyline = new window.google.maps.Polyline({
+        path: smoothedPath,
+        geodesic: true,
+        strokeColor: "#1F2937",
+        strokeOpacity: 0.3,
+        strokeWeight: 8,
+        map: googleMap,
+        clickable: false,
+      });
+
+      shadowPolylineRef.current = shadowPolyline;
 
       // Create covered route polyline (initially empty)
-      const coveredPolyline = L.polyline(coveredPath, {
-        color: "#10B981", // Green color for covered route
-        weight: 6,
-        opacity: 0.9,
-        lineCap: "round",
-        lineJoin: "round",
-        interactive: false,
-      }).addTo(leafletMap);
+      const coveredPolyline = new window.google.maps.Polyline({
+        path: [],
+        geodesic: true,
+        strokeColor: "#10B981", // Green color for covered route
+        strokeOpacity: 0.9,
+        strokeWeight: 6,
+        map: googleMap,
+        clickable: true, // Make it clickable for backward navigation
+      });
+
+      coveredPolylineRef.current = coveredPolyline;
 
       // Create remaining route polyline (initially full route)
-      polylineRef.current = L.polyline(remainingPath, {
-        color: "#8B5CF6", // Purple color for remaining route
-        weight: 6,
-        opacity: 0.9,
-        lineCap: "round",
-        lineJoin: "round",
-        dashArray: "10, 5", // Dashed line effect
-        dashOffset: "0",
-        interactive: true, // Make sure it's interactive
-        className: "clickable-polyline", // Add a class for styling
-      }).addTo(leafletMap);
+      const remainingPolyline = new window.google.maps.Polyline({
+        path: smoothedPath,
+        geodesic: true,
+        strokeColor: "#8B5CF6", // Purple color for remaining route
+        strokeOpacity: 0.9,
+        strokeWeight: 6,
+        map: googleMap,
+        clickable: true,
+        icons: [
+          {
+            icon: {
+              path: "M 0,-1 0,1",
+              strokeOpacity: 1,
+              scale: 4,
+            },
+            offset: "0",
+            repeat: "20px",
+          },
+        ],
+      });
+
+      remainingPolylineRef.current = remainingPolyline;
 
       // Store references for updating
-      movingMarkerRef.current.coveredPolyline = coveredPolyline;
-      movingMarkerRef.current.remainingPolyline = polylineRef.current;
-      movingMarkerRef.current.fullPath = smoothedPath;
+      movingMarker.fullPath = smoothedPath;
 
-      //  console.log("Polyline created:", polylineRef.current);
-
-      // Add click handler immediately when polyline is created
-      polylineRef.current.on("click", (e) => {
-        //  console.log("Polyline clicked immediately!");
-        const clickedLatLng = e.latlng;
-        //  console.log("Clicked LatLng:", clickedLatLng);
+      // Create a reusable click handler function
+      const handleRouteClick = (event) => {
+        const clickedLatLng = event.latLng;
 
         // Find the closest GPS point to the clicked location
         let closestPoint = data[0];
         let minDistance = Infinity;
 
         data.forEach((point) => {
-          const pointLatLng = L.latLng(
+          const pointLatLng = new window.google.maps.LatLng(
             parseFloat(point.Latitude),
             parseFloat(point.Longitude)
           );
-          const distance = clickedLatLng.distanceTo(pointLatLng);
+          const distance =
+            window.google.maps.geometry.spherical.computeDistanceBetween(
+              clickedLatLng,
+              pointLatLng
+            );
 
           if (distance < minDistance) {
             minDistance = distance;
             closestPoint = point;
           }
         });
-
-        //  console.log("Closest point:", closestPoint);
 
         // Jump to the timestamp of the closest point
         if (video && closestPoint) {
@@ -729,7 +946,6 @@ const SimpleMap = ({
           }
 
           if (timestamp !== null && !isNaN(timestamp)) {
-            //  console.log("Setting video time to:", timestamp);
             video.currentTime = timestamp;
           } else {
             console.error(
@@ -737,31 +953,88 @@ const SimpleMap = ({
               closestPoint
             );
           }
-        } else {
-          //  console.log("Video or closestPoint not available");
         }
+      };
+
+      // Store map reference for mouse events
+      mapRef.current.addEventListener("mousemove", (e) => {
+        const rect = mapRef.current.getBoundingClientRect();
+        setMousePosition({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        });
       });
 
-      // Add a shadow effect with a thicker, semi-transparent line behind
-      L.polyline(smoothedPath, {
-        color: "#1F2937",
-        weight: 8,
-        opacity: 0.3,
-        lineCap: "round",
-        lineJoin: "round",
-        interactive: false,
-      }).addTo(leafletMap);
+      // Create hover handler function
+      const handleRouteHover = (event) => {
+        const clickedLatLng = event.latLng;
+
+        // Find the closest GPS point to the hovered location
+        let closestPoint = data[0];
+        let minDistance = Infinity;
+
+        data.forEach((point) => {
+          const pointLatLng = new window.google.maps.LatLng(
+            parseFloat(point.Latitude),
+            parseFloat(point.Longitude)
+          );
+          const distance =
+            window.google.maps.geometry.spherical.computeDistanceBetween(
+              clickedLatLng,
+              pointLatLng
+            );
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestPoint = point;
+          }
+        });
+
+        if (closestPoint && closestPoint.timeStamp !== undefined) {
+          const timestamp = parseFloat(closestPoint.timeStamp);
+          const lat = parseFloat(closestPoint.Latitude).toFixed(6);
+          const lng = parseFloat(closestPoint.Longitude).toFixed(6);
+
+          // Format time
+          const formatTime = (t) => {
+            if (!t) return "0:00";
+            const minutes = Math.floor(t / 60);
+            const seconds = Math.floor(t % 60);
+            return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+          };
+
+          setHoverInfo({
+            timestamp: formatTime(timestamp),
+            lat,
+            lng,
+          });
+        }
+      };
+
+      // Handle mouse leave to close tooltip
+      const handleRouteMouseOut = () => {
+        setHoverInfo(null);
+      };
+
+      // Add hover handlers to both polylines
+      coveredPolyline.addListener("mouseover", handleRouteHover);
+      coveredPolyline.addListener("mouseout", handleRouteMouseOut);
+      remainingPolyline.addListener("mouseover", handleRouteHover);
+      remainingPolyline.addListener("mouseout", handleRouteMouseOut);
+
+      // Add click handler to both covered and remaining polylines
+      coveredPolyline.addListener("click", handleRouteClick);
+      remainingPolyline.addListener("click", handleRouteClick);
 
       // Fit map to show the whole route
-      const bounds = L.latLngBounds(smoothedPath);
-      leafletMap.fitBounds(bounds);
+      const bounds = new window.google.maps.LatLngBounds();
+      smoothedPath.forEach((point) => bounds.extend(point));
+      googleMap.fitBounds(bounds);
     }, 100);
 
     return () => {
       clearTimeout(timer);
-      if (map) {
-        map.remove();
-      }
+      // Google Maps cleanup is handled automatically
     };
   }, [mapRef, map, data]);
 
@@ -801,8 +1074,8 @@ const SimpleMap = ({
         parseFloat(prev.Longitude) +
         ratio * (parseFloat(next.Longitude) - parseFloat(prev.Longitude));
 
-      const pos = L.latLng(lat, lng);
-      movingMarkerRef.current?.setLatLng(pos);
+      const pos = new window.google.maps.LatLng(lat, lng);
+      movingMarkerRef.current?.setPosition(pos);
 
       setCoords({ lat: lat.toFixed(6), lng: lng.toFixed(6) });
 
@@ -820,8 +1093,8 @@ const SimpleMap = ({
       // Update covered and remaining route polylines
       if (
         movingMarkerRef.current?.fullPath &&
-        movingMarkerRef.current?.coveredPolyline &&
-        movingMarkerRef.current?.remainingPolyline
+        coveredPolylineRef.current &&
+        remainingPolylineRef.current
       ) {
         const fullPath = movingMarkerRef.current.fullPath;
         const currentIndex = Math.floor(
@@ -833,8 +1106,8 @@ const SimpleMap = ({
         const remainingPath = fullPath.slice(currentIndex);
 
         // Update the polylines
-        movingMarkerRef.current.coveredPolyline.setLatLngs(coveredPath);
-        movingMarkerRef.current.remainingPolyline.setLatLngs(remainingPath);
+        coveredPolylineRef.current.setPath(coveredPath);
+        remainingPolylineRef.current.setPath(remainingPath);
       }
 
       // Continue animation if video is playing
@@ -921,6 +1194,53 @@ const SimpleMap = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Custom Hover Tooltip */}
+      {hoverInfo && (
+        <div
+          className="absolute z-[10000] pointer-events-none"
+          style={{
+            left: mousePosition.x + 10,
+            top: mousePosition.y - 10,
+            transform: "translate(0, -100%)",
+          }}
+        >
+          <TooltipProvider>
+            <div className="bg-popover text-popover-foreground rounded-md border px-3 py-2 text-sm shadow-md animate-in fade-in-0 zoom-in-95">
+              <div className="font-semibold text-foreground mb-2 pb-1 border-b">
+                Route Info
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3 w-3 text-green-600" />
+                  <span className="text-xs text-muted-foreground">Time:</span>
+                  <span className="text-xs font-semibold text-green-600">
+                    {hoverInfo.timestamp}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-3 w-3 text-red-500" />
+                  <span className="text-xs text-muted-foreground">Lat:</span>
+                  <span className="text-xs font-mono text-red-600">
+                    {hoverInfo.lat}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-3 w-3 text-red-500" />
+                  <span className="text-xs text-muted-foreground">Lng:</span>
+                  <span className="text-xs font-mono text-red-600">
+                    {hoverInfo.lng}
+                  </span>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground text-center mt-2 pt-1 border-t">
+                Click to seek to this point
+              </div>
+            </div>
+          </TooltipProvider>
+        </div>
+      )}
+
       <div
         ref={mapRef}
         style={{
@@ -954,12 +1274,16 @@ export default function VideoWithMap({
     let minDistance = Infinity;
 
     sortedData.forEach((point) => {
-      const pointLatLng = L.latLng(
+      const pointLatLng = new window.google.maps.LatLng(
         parseFloat(point.Latitude),
         parseFloat(point.Longitude)
       );
-      const initialLatLng = L.latLng(initialY, initialX); // Note: Y is lat, X is lng
-      const distance = initialLatLng.distanceTo(pointLatLng);
+      const initialLatLng = new window.google.maps.LatLng(initialY, initialX); // Note: Y is lat, X is lng
+      const distance =
+        window.google.maps.geometry.spherical.computeDistanceBetween(
+          initialLatLng,
+          pointLatLng
+        );
 
       if (distance < minDistance) {
         minDistance = distance;

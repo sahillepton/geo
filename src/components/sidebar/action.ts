@@ -158,6 +158,7 @@ export async function deleteRoute(id: string, deletedBy: string) {
 
 export async function getVideoList(filters : VideoListFilters, page = 1, pageSize = 10) {
   try {
+    console.time("getVideoList")
     const supabase = await createClient();
     let query = supabase
       .from('surveys')
@@ -280,6 +281,8 @@ export async function getVideoList(filters : VideoListFilters, page = 1, pageSiz
     const videosMap = new Map(videosResponse.data?.map(v => [v.id, v]) || []);
     const gpsTracksMap = new Map(gpsTracksResponse.data?.map(g => [g.id, g]) || []);
     const usersMap = new Map(usersResponse.data?.map(u => [u.user_id, u]) || []);
+
+    console.timeEnd("getVideoList")
 
     return {
       data: JSON.stringify({

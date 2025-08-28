@@ -18,7 +18,7 @@ import {
 } from "../ui/select";
 import { Button } from "../ui/button";
 import { DialogFooter } from "../ui/dialog";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { addUser } from "./action";
 import { toast } from "sonner";
 import { Loader2, PlusIcon } from "lucide-react";

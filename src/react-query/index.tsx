@@ -6,7 +6,14 @@ interface ReactQueryProviderProps {
   children: React.ReactNode;
 }
 
-const client = new QueryClient();
+const client = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
+  },
+});
 
 const ReactQueryProvider = ({ children }: ReactQueryProviderProps) => {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;

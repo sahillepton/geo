@@ -190,50 +190,66 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
   };
 
   const columns: ColumnDef<any>[] = [
+    // Only show actions column for admin users
+    ...(currentUser.role?.toLowerCase() === "admin" ||
+    currentUser.role?.toLowerCase() === "manager"
+      ? [
+          {
+            accessorKey: "action",
+            header: "",
+            cell: ({ row }) => {
+              return (
+                <div className="flex items-center gap-1">
+                  <EditUserModel
+                    currentUser={currentUser}
+                    data={data}
+                    user={row.original}
+                  />
+                  <DeleteUserModal deletingUser={row.original} />
+                </div>
+              );
+            },
+          },
+        ]
+      : []),
     {
       accessorKey: "username",
-      header: () => (
-        <div className="flex items-center gap-1 justify-center">
-          <UserIcon size={16} />
-          <span>USERNAME</span>
-        </div>
-      ),
+      header: "Username",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1 justify-center">
-          <UserIcon size={14} className="text-gray-500" />
-          <span className="text-sm font-medium text-gray-900">
-            {row.original.username}
+        <div className="flex items-center justify-center">
+          <span
+            title={row.original.username}
+            className="w-20 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c]"
+          >
+            {row.original.username?.length > 20
+              ? row.original.username.slice(0, 20) + "..."
+              : row.original.username}
           </span>
         </div>
       ),
     },
     {
       accessorKey: "email",
-      header: () => (
-        <div className="flex items-center gap-1 justify-center">
-          <MailIcon size={16} />
-          <span>EMAIL</span>
-        </div>
-      ),
+      header: "Email",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1 justify-center">
-          <MailIcon size={14} className="text-gray-500" />
-          <span className="text-sm text-gray-700">{row.original.email}</span>
+        <div className="flex items-center justify-center">
+          <span
+            title={row.original.email}
+            className="w-32 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c]"
+          >
+            {row.original.email?.length > 25
+              ? row.original.email.slice(0, 25) + "..."
+              : row.original.email}
+          </span>
         </div>
       ),
     },
     {
       accessorKey: "role",
-      header: () => (
-        <div className="flex items-center gap-1 justify-center">
-          <UserIcon size={16} />
-          <span>ROLE</span>
-        </div>
-      ),
+      header: "Role",
       cell: ({ row }) => (
-        <div className="flex items-center gap-1 justify-center">
-          <UserIcon size={14} className="text-gray-500" />
-          <span className="text-sm font-medium text-gray-900">
+        <div className="flex items-center justify-center">
+          <span className="w-20 text-center text-xs font-semibold truncate rounded px-1 py-0.5 text-[#11181c]">
             {row.original.role}
           </span>
         </div>
@@ -241,53 +257,32 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
     },
     {
       accessorKey: "manager",
-      header: () => (
-        <div className="flex items-center gap-1 justify-center">
-          <UsersIcon size={16} />
-          <span>MANAGER</span>
-        </div>
-      ),
+      header: "Manager",
       cell: ({ row }) => {
         const manager = data?.allUsers?.find(
           (user: any) => user.user_id === row.original.manager_id
         );
+        const color = getRandomAvatarColor();
         return (
           <div className="flex items-center justify-center">
             {manager ? (
-              <span className="text-sm text-gray-700">{manager.username}</span>
+              <div className="flex items-center gap-2">
+                <Avatar className="w-6 h-6 text-xs flex items-center justify-center">
+                  <AvatarFallback
+                    className={`${color.bg} ${color.text} font-semibold`}
+                  >
+                    {manager.username?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <p className="text-xs">{manager.username}</p>
+              </div>
             ) : (
-              <span className="text-sm text-gray-400">-</span>
+              <span className="text-xs text-gray-400">No Manager</span>
             )}
           </div>
         );
       },
     },
-    // Only show actions column for admin users
-    ...(currentUser.role?.toLowerCase() === "admin" ||
-    currentUser.role?.toLowerCase() === "manager"
-      ? [
-          {
-            accessorKey: "actions",
-            header: () => (
-              <div className="flex items-center gap-1 justify-center">
-                <SettingsIcon size={16} />
-                <span>ACTIONS</span>
-              </div>
-            ),
-            cell: ({ row }) => (
-              <div className="flex items-center gap-2 justify-center">
-                <EditUserModel
-                  currentUser={currentUser}
-                  data={data}
-                  user={row.original}
-                />
-
-                <DeleteUserModal deletingUser={row.original} />
-              </div>
-            ),
-          },
-        ]
-      : []),
   ];
 
   // Get unique roles from the data
@@ -297,20 +292,36 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
   }, [data?.users]);
 
   return (
-    <div className="container py-8 max-w-[1050px] mx-auto">
-      <div className="mb-4 w-full flex justify-between items-center">
-        <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2">
-          <SearchIcon size={16} />
-          <Input
-            type="search"
-            placeholder="Search for username or email"
-            className="border-none ring-none shadow-none focus:border-none focus:ring-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+    <div className="container py-6 max-w-[1050px] mx-auto">
+      <div className="mb-4 w-full flex justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 border rounded-md w-64 h-8 p-2 bg-[#f4f4f5]">
+            <SearchIcon size={16} />
+            <Input
+              type="search"
+              placeholder="Search for username or email"
+              className="border-none ring-none shadow-none focus:border-none focus:ring-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          {(selectedRole || search) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedRole("");
+                setSearch("");
+                setPage(1);
+              }}
+              className="h-8 text-xs"
+            >
+              Clear Filters
+            </Button>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 h-8">
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -354,6 +365,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
       <div className="flex items-center space-x-2 py-4 mt-4">
         <Pagination>
           <PaginationContent>
+            {/* Previous */}
             <PaginationItem>
               <PaginationPrevious
                 href="#"
@@ -361,18 +373,26 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
                   e.preventDefault();
                   setPage((prev) => Math.max(prev - 1, 1));
                 }}
+                className="cursor-pointer"
               />
             </PaginationItem>
 
+            {/* Page Numbers */}
             {getPageNumbers().map((num, idx) => (
               <PaginationItem key={idx}>
                 {num === "..." ? (
                   <PaginationEllipsis />
                 ) : (
                   <PaginationLink
-                    isActive={num === page}
                     href="#"
                     onClick={(e) => handlePageClick(e, num)}
+                    isActive={num === page}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-300
+                ${
+                  num === page
+                    ? "bg-purple-600 text-white shadow-md scale-105"
+                    : "text-gray-800 hover:bg-gray-100 hover:scale-105"
+                }`}
                   >
                     {num}
                   </PaginationLink>
@@ -380,6 +400,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
               </PaginationItem>
             ))}
 
+            {/* Next */}
             <PaginationItem>
               <PaginationNext
                 href="#"
@@ -387,6 +408,7 @@ export default function UserTable({ currentUser }: { currentUser: any }) {
                   e.preventDefault();
                   setPage((prev) => Math.min(prev + 1, totalPages));
                 }}
+                className="cursor-pointer"
               />
             </PaginationItem>
           </PaginationContent>

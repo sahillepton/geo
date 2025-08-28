@@ -103,7 +103,7 @@ const RowAction = ({
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
+      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <MoreHorizontalIcon className="w-4 h-4 transition-colors group-hover:text-accent-foreground" />
         </Button>
